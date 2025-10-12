@@ -47,7 +47,15 @@
 
 <script>
   // === Optional Firebase config (for real-time sync) ===
-  const FIREBASE_CONFIG = null; // paste your config to enable sync
+  const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyAaDT6hFD38_P1AhQMF_vT18tXG9_pp8Sw",
+  authDomain: "binbackinsolutions.firebaseapp.com",
+  projectId: "binbackinsolutions",
+  storageBucket: "binbackinsolutions.firebasestorage.app",
+  messagingSenderId: "740345071529",
+  appId: "1:740345071529:web:e960f05ba0c982194126b8",
+  measurementId: "G-6XK5H9LWWK"
+};
 
   const SEED = [{'address': '30 Woodlands Close', 'pickup': 'Tuesday', 'gas': 'No'}, {'address': '6 Goldrush Way', 'pickup': 'Tuesday', 'gas': 'Yes'}, {'address': '20 Goldleaf', 'pickup': 'Tuesday', 'gas': 'Yes'}, {'address': '2/64 Marina Drive', 'pickup': 'Tuesday', 'gas': 'Yes'}, {'address': '1/47 Lomond Cres', 'pickup': 'Wednesday', 'gas': 'No'}, {'address': '2/11 Gum Lane', 'pickup': 'Wednesday', 'gas': 'No'}, {'address': '22C Malaghan Street', 'pickup': 'Wednesday', 'gas': 'No'}, {'address': '78 Highview', 'pickup': 'Wednesday', 'gas': 'No'}, {'address': '70 Panorama Terrace', 'pickup': 'Wednesday', 'gas': 'No'}, {'address': '7 Peregrine Place', 'pickup': 'Wednesday', 'gas': 'No'}, {'address': '101 Hensman Road', 'pickup': 'Wednesday', 'gas': 'Yes'}, {'address': '18 Amber Close', 'pickup': 'Thursday', 'gas': 'Yes'}, {'address': '6 Redfern Terrace', 'pickup': 'Thursday', 'gas': 'Yes'}, {'address': '14 Cumberland Road', 'pickup': 'Thursday', 'gas': 'No'}, {'address': '12 Corriedale Road', 'pickup': 'Friday', 'gas': 'No'}, {'address': '42 Muster Road', 'pickup': 'Friday', 'gas': 'Yes'}];
   const $ = s => document.querySelector(s);
