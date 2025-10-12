@@ -1,0 +1,246 @@
+
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Bin Back In — Sync + Gas Checks</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<style>
+  :root{--bg:#ffffff;--ink:#0f172a;--muted:#6b7280;--border:#e5e7eb;}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif}
+  header{position:sticky;top:0;background:#fff;border-bottom:1px solid var(--border);padding:14px 16px;display:flex;align-items:center;gap:10px;z-index:10}
+  .brand{font-weight:800;font-size:18px}
+  .spacer{flex:1}
+  .btn{padding:8px 12px;border:1px solid var(--border);border-radius:10px;background:#fff;cursor:pointer}
+  main{max-width:980px;margin:0 auto;padding:16px}
+  .bar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px}
+  .section{background:#fff;border:1px solid var(--border);border-radius:14px;padding:14px}
+  .addr{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center;border:1px solid var(--border);border-radius:12px;padding:12px;margin-bottom:8px;background:#fff}
+  .name{font-weight:700}
+  .meta{color:var(--muted);font-size:12px;display:flex;gap:8px;flex-wrap:wrap}
+  .badge{border:1px solid var(--border);border-radius:999px;padding:6px 10px;display:inline-flex;align-items:center;gap:6px}
+  .map{border:1px solid var(--border);border-radius:999px;padding:6px 10px;text-decoration:none}
+  .warn{background:#fff7ed;border-color:#fdba74}
+  #status{font-size:12px;color:var(--muted)}
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">Bin Back In Solutions</div>
+  <div class="spacer"></div>
+  <button id="refresh" class="btn">Refresh</button>
+  <button id="opt" class="btn">Optimize order</button>
+  <button id="export" class="btn">Export</button>
+  <input id="file" type="file" accept=".json" style="display:none">
+  <button id="importBtn" class="btn">Import</button>
+</header>
+<main>
+  <div class="bar">
+    <div id="status">Local mode — fill Firebase config to sync across devices.</div>
+  </div>
+  <div class="section">
+    <h2 style="margin:6px 0 12px 0;">Queenstown — Addresses</h2>
+    <div id="list"></div>
+  </div>
+</main>
+
+<script>
+  // === Optional Firebase config (for real-time sync) ===
+  // 1) Create Firebase project → Firestore database
+  // 2) Add a Web app → copy the config into FIREBASE_CONFIG below
+  // 3) Turn on Firestore rules to allow read/write for your team, or use auth
+  const FIREBASE_CONFIG = null; // <-- paste your config object here to enable sync
+
+  // ====== App ======
+  const SEED = [{'address': '30 Woodlands Close', 'pickup': 'Tuesday', 'gas': 'No', 'price': '$6.90 + $1', 'total': '$7.90'}, {'address': '6 Goldrush Way', 'pickup': 'Tuesday', 'gas': 'Yes', 'price': '$6.90 + $1 + $1', 'total': '$8.90'}, {'address': '20 Goldleaf', 'pickup': 'Tuesday', 'gas': 'Yes', 'price': '$6.90 + $1 + $1', 'total': '$8.90'}, {'address': '2/64 Marina Drive', 'pickup': 'Tuesday', 'gas': 'Yes', 'price': '$6.90 + $1 + $1', 'total': '$8.90'}, {'address': '1/47 Lomond Cres', 'pickup': 'Wednesday', 'gas': 'No', 'price': '$6.90 + $1', 'total': '$7.90'}, {'address': '2/11 Gum Lane', 'pickup': 'Wednesday', 'gas': 'No', 'price': '$6.90 + $1', 'total': '$7.90'}, {'address': '22C Malaghan Street', 'pickup': 'Wednesday', 'gas': 'No', 'price': '$6.90 + $1', 'total': '$7.90'}, {'address': '78 Highview', 'pickup': 'Wednesday', 'gas': 'No', 'price': '$6.90 + $1', 'total': '$7.90'}, {'address': '70 Panorama Terrace', 'pickup': 'Wednesday', 'gas': 'No', 'price': '$6.90 + $1', 'total': '$7.90'}, {'address': '7 Peregrine Place', 'pickup': 'Wednesday', 'gas': 'No', 'price': '$6.90 + $1', 'total': '$7.90'}, {'address': '101 Hensman Road', 'pickup': 'Wednesday', 'gas': 'Yes', 'price': '$6.90 + $1 + $1', 'total': '$8.90'}, {'address': '18 Amber Close', 'pickup': 'Thursday', 'gas': 'Yes', 'price': '$6.90 + $1 + $1', 'total': '$8.90'}, {'address': '6 Redfern Terrace', 'pickup': 'Thursday', 'gas': 'Yes', 'price': '$6.90 + $1 + $1', 'total': '$8.90'}, {'address': '14 Cumberland Road', 'pickup': 'Thursday', 'gas': 'No', 'price': '$6.90 + $1', 'total': '$7.90'}, {'address': '12 Corriedale Road', 'pickup': 'Friday', 'gas': 'No', 'price': '$6.90 + $1', 'total': '$7.90'}, {'address': '42 Muster Road', 'pickup': 'Friday', 'gas': 'Yes', 'price': '$6.90 + $1 + $1', 'total': '$8.90'}];
+  const $ = s => document.querySelector(s);
+  const listEl = $('#list');
+  const statusEl = $('#status');
+  const LS = 'bbi_sync_v1';
+
+  // Optional rough coords (fill later)
+  const COORDS = {
+    "30 Woodlands Close": null,
+    "6 Goldrush Way": null,
+    "20 Goldleaf": null,
+    "2/64 Marina Drive": null,
+    "1/47 Lomond Cres": null,
+    "2/11 Gum Lane": null,
+    "22C Malaghan Street": null,
+    "78 Highview": null,
+    "70 Panorama Terrace": null,
+    "7 Peregrine Place": null,
+    "101 Hensman Road": null,
+    "18 Amber Close": null,
+    "6 Redfern Terrace": null,
+    "14 Cumberland Road": null,
+    "12 Corriedale Road": null,
+    "42 Muster Road": null
+  };
+
+  let state = null;
+  try { state = JSON.parse(localStorage.getItem(LS)); } catch(e) {}
+  if (!state) {
+    state = SEED.map((o)=>({
+      id: slug(o.address),
+      address: o.address,
+      pickup: o.pickup,
+      gas: o.gas,
+      price: o.price,
+      total: o.total,
+      out: false,
+      back: false,
+      gasReplace: false,
+      updatedAt: Date.now()
+    }));
+    localStorage.setItem(LS, JSON.stringify(state));
+  }
+
+  function saveLocal() { localStorage.setItem(LS, JSON.stringify(state)); }
+  function slug(s) { return s.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,''); }
+  function mapURL(a){ return 'https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(a+', Queenstown'); }
+
+  function render(){
+    listEl.innerHTML='';
+    state.forEach((it,i)=>{
+      const row = document.createElement('div');
+      row.className='addr';
+      row.innerHTML = `
+        <div>
+          <div class="name">${it.address}</div>
+          <div class="meta">
+            <span class="badge">Pickup: ${it.pickup}</span>
+            <span class="badge">Gas: ${it.gas}</span>
+            <span class="badge">Price: ${it.price}</span>
+            <span class="badge">Total: ${it.total}</span>
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <label class="badge"><input type="checkbox" data-i="${i}" data-act="out" ${it.out?'checked':''}> Out</label>
+          <label class="badge"><input type="checkbox" data-i="${i}" data-act="back" ${it.back?'checked':''}> Back</label>
+          <label class="badge warn"><input type="checkbox" data-i="${i}" data-act="gasReplace" ${it.gasReplace?'checked':''}> Gas replace?</label>
+          <a class="map" href="${mapURL(it.address)}" target="_blank" rel="noopener">Map</a>
+        </div>
+      `;
+      listEl.appendChild(row);
+    });
+  }
+
+  listEl.addEventListener('change', async (e)=>{
+    const cb = e.target.closest('input[type=checkbox]'); if(!cb) return;
+    const i = Number(cb.dataset.i);
+    const act = cb.dataset.act;
+    state[i][act] = cb.checked;
+    state[i].updatedAt = Date.now();
+    saveLocal();
+    await pushRemote(state[i]);
+  });
+
+  document.getElementById('opt').addEventListener('click', ()=>{
+    const haveCoords = state.every(s=>COORDS[s.address]);
+    if (!haveCoords) {
+      state.sort((a,b)=>a.address.localeCompare(b.address));
+      saveLocal(); render();
+      alert('No coordinates set — sorted A→Z for now.');
+      return;
+    }
+    const pts = state.map(s=>({...s, coord: COORDS[s.address]}));
+    const used = new Set(); const route = []; let current = 0;
+    for (let k=0;k<pts.length;k++) {
+      used.add(current); route.push(pts[current]);
+      let best=-1, bestd=1e12;
+      for (let j=0;j<pts.length;j++) if(!used.has(j)) {
+        const d = dist(pts[current].coord, pts[j].coord);
+        if (d<bestd) { bestd=d; best=j; }
+      }
+      if (best===-1) break; current=best;
+    }
+    state = route; saveLocal(); render();
+  });
+  function dist(a,b){ const dx=a[0]-b[0], dy=a[1]-b[1]; return Math.sqrt(dx*dx+dy*dy); }
+
+  document.getElementById('refresh').addEventListener('click', async ()=>{ await pullRemote(); });
+
+  document.getElementById('export').addEventListener('click', ()=>{
+    const blob = new Blob([JSON.stringify(state,null,2)], {type:'application/json'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'bin-sync-data.json';
+    a.click();
+    URL.revokeObjectURL(a.href);
+  });
+  document.getElementById('importBtn').addEventListener('click', ()=>document.getElementById('file').click());
+  document.getElementById('file').addEventListener('change', (e)=>{
+    const f=e.target.files[0]; if(!f) return;
+    const rd=new FileReader();
+    rd.onload=()=>{
+      try{
+        const data = JSON.parse(rd.result);
+        if(Array.isArray(data)){ state=data; saveLocal(); render(); pushAllRemote(); }
+        else alert('Invalid file');
+      }catch(err){ alert('Could not read file'); }
+    };
+    rd.readAsText(f);
+    e.target.value='';
+  });
+
+  // ===== Firebase (Firestore) real-time sync =====
+  let db = null, unsub = null;
+  (async function initFirebase(){
+    if (!FIREBASE_CONFIG) { statusEl.textContent = 'Local mode — add Firebase config in the file to sync across devices.'; render(); return; }
+    try {
+      const app = firebase.initializeApp(FIREBASE_CONFIG);
+      db = firebase.firestore();
+      statusEl.textContent = 'Sync ON — live updates enabled.';
+      startListener();
+      pushAllRemote();
+    } catch(e) {
+      console.error(e);
+      statusEl.textContent = 'Firebase init failed — falling back to local mode.';
+    }
+    render();
+  })();
+
+  function startListener(){
+    if (!db) return;
+    if (unsub) unsub();
+    unsub = db.collection('properties').onSnapshot((snap)=>{
+      let changed = false;
+      const remote = [];
+      snap.forEach(doc=>remote.push(doc.data()));
+      // Merge remote into local by latest updatedAt
+      for (const r of remote){
+        const i = state.findIndex(x=>x.id===r.id);
+        if (i>=0) { if (!state[i].updatedAt || r.updatedAt > state[i].updatedAt) { state[i] = {...state[i], ...r}; changed = true; } }
+        else { state.push(r); changed = true; }
+      }
+      if (changed) { saveLocal(); render(); }
+    });
+  }
+
+  async function pushRemote(item){
+    if (!db) return;
+    try { await db.collection('properties').doc(item.id).set(item, {merge:true}); } catch(e) { console.error(e); }
+  }
+  async function pushAllRemote(){
+    if (!db) return;
+    for (const it of state) await pushRemote(it);
+  }
+  async function pullRemote(){
+    if (!db) { render(); return; }
+    const snap = await db.collection('properties').get();
+    snap.forEach(doc=>{
+      const r = doc.data();
+      const i = state.findIndex(x=>x.id===r.id);
+      if (i>=0) { if (!state[i].updatedAt || r.updatedAt > state[i].updatedAt) state[i]=r; }
+      else state.push(r);
+    });
+    saveLocal(); render();
+  }
+</script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+</body>
+</html>
