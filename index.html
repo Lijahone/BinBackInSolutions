@@ -1,0 +1,294 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Bin Back In Solutions</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+<style>
+  :root{ --bg:#f7f7fb; --card:#ffffff; --ink:#0f172a; --muted:#6b7280; --border:#e5e7eb; --brand:#2563eb; }
+  @media (prefers-color-scheme: dark){
+    :root{ --bg:#0b1020; --card:#0f1529; --ink:#e5e7eb; --muted:#9aa1b2; --border:#2a3352; --brand:#3b82f6; }
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif}
+  header{position:sticky;top:0;background:var(--card);border-bottom:1px solid var(--border);
+    padding:10px 12px;display:flex;align-items:center;gap:8px;z-index:10;flex-wrap:wrap}
+  .brand{font-weight:800;font-size:18px}
+  .spacer{flex:1}
+  .btn{padding:10px 14px;border:1px solid var(--border);border-radius:12px;background:var(--card);cursor:pointer;font-weight:600}
+  .btn.ghost{background:transparent}
+  .seg{display:flex;gap:6px;background:var(--bg);padding:4px;border-radius:12px;border:1px solid var(--border)}
+  .seg button{padding:8px 12px;border:0;border-radius:10px;background:transparent;font-weight:600;color:var(--muted)}
+  .seg button.active{background:var(--card);color:var(--ink);border:1px solid var(--border)}
+  main{max-width:900px;margin:0 auto;padding:12px}
+  .addr{display:grid;grid-template-columns:1fr;gap:10px;border:1px solid var(--border);
+    border-radius:16px;padding:14px 12px;margin-bottom:10px;background:var(--card);box-shadow:0 1px 0 rgba(0,0,0,.03)}
+  .topline{display:flex;align-items:center;gap:10px;justify-content:space-between;flex-wrap:wrap}
+  .name{font-weight:800}
+  .meta{color:var(--muted);font-size:12px;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  .badge{border:1px solid var(--border);border-radius:999px;padding:6px 10px;display:inline-flex;align-items:center;gap:6px}
+  .actions{display:flex;flex-wrap:wrap;gap:10px 12px;align-items:flex-start}
+  .toggle{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--border);border-radius:999px;padding:8px 12px}
+  .toggleWrap{display:flex;flex-direction:column;gap:2px;align-items:flex-start;min-width:fit-content}
+  .maplink{border:1px solid var(--border);border-radius:999px;padding:8px 12px;text-decoration:none}
+  .mini-map{height:180px;border:1px solid var(--border);border-radius:12px;margin-top:4px;width:100%}
+  #status{font-size:12px;color:var(--muted)}
+  #debug{font-size:12px;color:#b91c1c;white-space:pre-wrap;background:#fff1f2;border:1px solid #fecdd3;border-radius:10px;padding:8px;margin-top:8px;display:none}
+  .icon-btn{border:0;background:transparent;font-size:18px;line-height:1;padding:2px 6px;border-radius:4px;color:var(--muted);cursor:pointer}
+  .icon-btn:hover{background:transparent;color:var(--muted)}
+  .noteRow{margin-top:6px}
+  .note{
+    width:100%;
+    font-size:16px; line-height:1.35;
+    padding:6px 10px;
+    border:1px solid var(--border);
+    border-radius:10px;
+    resize:none; overflow:hidden; background:transparent; color:var(--ink);
+    height:30px; min-height:30px; max-height:78px;
+  }
+  .note::placeholder{color:var(--muted);opacity:.75}
+  .byname{cursor:pointer; color:var(--muted); font-weight:600}
+  .hintline{font-size:12px; color:var(--muted); opacity:0; transition:opacity .4s; height:0; overflow:hidden; margin-left:4px}
+  .hintline.show{opacity:1; height:auto; margin-top:2px}
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">Bin Back In Solutions</div>
+  <div class="spacer"></div>
+  <div class="seg" id="daySeg">
+    <button data-day="All" class="active">All</button>
+    <button data-day="Tuesday">Tue</button>
+    <button data-day="Wednesday">Wed</button>
+    <button data-day="Thursday">Thu</button>
+    <button data-day="Friday">Fri</button>
+  </div>
+  <button id="addBtn" class="btn">+ Address</button>
+  <button id="userBtn" class="btn">User</button>
+</header>
+
+<main>
+  <div class="section">
+    <div id="status">Connecting…</div>
+    <div id="debug"></div>
+  </div>
+  <div class="section">
+    <h2 style="margin:6px 0 12px 0;">Queenstown — Addresses</h2>
+    <div id="list"></div>
+  </div>
+</main>
+
+<div id="overlay" style="position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;z-index:50">
+  <div style="width:min(700px,95vw);height:min(70vh,520px);background:#fff;border-radius:12px;display:flex;flex-direction:column;overflow:hidden">
+    <header style="display:flex;gap:8px;align-items:center;border-bottom:1px solid var(--border);padding:10px 12px">
+      <div id="overlayTitle" class="brand" style="font-size:16px">Set Pin</div>
+      <div class="spacer"></div>
+      <button id="cancelPin" class="btn">Cancel</button>
+      <button id="savePin" class="btn">Save</button>
+    </header>
+    <div id="bigMap" style="flex:1"></div>
+    <div style="padding:10px;border-top:1px solid var(--border);display:flex;gap:8px;align-items:center">
+      <label>Label:</label><input id="pinLabel" placeholder="e.g., by mailbox" style="flex:1;padding:10px;border:1px solid var(--border);border-radius:10px">
+      <button id="useGPS" class="btn">Use GPS</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+
+<script>
+window.addEventListener('error', (e)=>{
+  const dbg = document.getElementById('debug');
+  if (dbg) { dbg.style.display='block'; dbg.textContent = 'Runtime error: ' + (e && e.message ? e.message : e.error); }
+  const st = document.getElementById('status');
+  if (st) st.textContent = 'Error loading app — see details below.';
+});
+
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyAaDT6hFD38_P1AhQMF_vT18tXG9_pp8Sw",
+  authDomain: "binbackinsolutions.firebaseapp.com",
+  projectId: "binbackinsolutions",
+  storageBucket: "binbackinsolutions.appspot.com",
+  messagingSenderId: "740345071529",
+  appId: "1:740345071529:web:e960f05ba0c982194126b8",
+  measurementId: "G-6XK5H9LWWK"
+};
+
+const SEED = [
+  {"address":"30 Woodlands Close", "pickup":"Tuesday", "gas":"No"},
+  {"address":"6 Goldrush Way", "pickup":"Tuesday", "gas":"Yes"},
+  {"address":"20 Goldleaf", "pickup":"Tuesday", "gas":"Yes"},
+  {"address":"2/64 Marina Drive", "pickup":"Tuesday", "gas":"Yes"},
+  {"address":"34a Brisbane Street", "pickup":"Tuesday", "gas":"No"},
+  {"address":"1/47 Lomond Cres", "pickup":"Wednesday", "gas":"No"},
+  {"address":"39 Lomond Cres", "pickup":"Wednesday", "gas":"No"},
+  {"address":"41 Lomond Cres", "pickup":"Wednesday", "gas":"No"},
+  {"address":"2/11 Gum Lane", "pickup":"Wednesday", "gas":"No"},
+  {"address":"22C Malaghan Street", "pickup":"Wednesday", "gas":"No"},
+  {"address":"78 Highview", "pickup":"Wednesday", "gas":"No"},
+  {"address":"70 Panorama Terrace", "pickup":"Wednesday", "gas":"No"},
+  {"address":"7 Peregrine Place", "pickup":"Wednesday", "gas":"No"},
+  {"address":"101 Hensman Road", "pickup":"Wednesday", "gas":"Yes"},
+  {"address":"18 Amber Close", "pickup":"Thursday", "gas":"Yes"},
+  {"address":"6 Redfern Terrace", "pickup":"Thursday", "gas":"Yes"},
+  {"address":"14 Cumberland Road", "pickup":"Thursday", "gas":"No"},
+  {"address":"12 Corriedale Road", "pickup":"Friday", "gas":"No"},
+  {"address":"42 Muster Road", "pickup":"Friday", "gas":"Yes"}
+];
+
+const $ = s => document.querySelector(s);
+const listEl = $('#list');
+const statusEl = $('#status');
+const debugEl = $('#debug');
+const overlay = $('#overlay');
+const overlayTitle = $('#overlayTitle');
+const bigMapEl = $('#bigMap');
+const pinLabelEl = $('#pinLabel');
+const LS = 'bbi_collab_map_simplified_v1';
+const LS_USER = 'bbi_user_name';
+
+const now = ()=>Date.now();
+function slug(s){ return s.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,''); }
+function fmtShort(ts){
+  if(!ts) return '';
+  const d = new Date(ts);
+  const t = d.toLocaleTimeString([], {hour:'numeric', minute:'2-digit'});
+  const wd = d.toLocaleDateString([], {weekday:'short'});
+  const dm = d.toLocaleDateString([], {day:'2-digit', month:'short'});
+  return `${t} · ${wd} ${dm}`;
+}
+
+let userName = localStorage.getItem(LS_USER) || '';
+function askUser(){ const v = prompt('Your name (for activity log):', userName || ''); if (v!==null){ userName=v.trim(); localStorage.setItem(LS_USER, userName); try{render();}catch(_){} } }
+document.getElementById('userBtn').addEventListener('click', askUser);
+
+let state = null;
+try { state = JSON.parse(localStorage.getItem(LS)); } catch(e) { state = null; }
+if (!state) {
+  state = SEED.map((o)=>({
+    id: slug(o.address), address:o.address, pickup:o.pickup, gas:o.gas,
+    out:false,outBy:'',outAt:0, back:false,backBy:'',backAt:0, gasReplace:false,gasBy:'',gasAt:0,
+    lat:null,lng:null, pinLat:null,pinLng:null,pinLabel:'', note:'', updatedAt:now()
+  }));
+  saveLocal();
+}
+function saveLocal(){ localStorage.setItem(LS, JSON.stringify(state)); }
+
+function render(){
+  listEl.innerHTML='';
+  const items = state;
+  items.forEach((it)=>{
+    const row = document.createElement('div');
+    row.className='addr';
+
+    const gasToggle = it.gas==='Yes'
+      ? `<div class="toggleWrap">
+           <label class="toggle"><input type="checkbox" data-id="${it.id}" data-act="gasReplace" ${it.gasReplace?'checked':''}> Gas replace</label>
+           ${it.gasReplace && it.gasBy ? `<div><span class="byname" data-id="${it.id}" data-kind="gas">(${it.gasBy})</span></div>` : ''}
+           <div class="hintline" id="hint-gas-${it.id}">↳ Ticked ${fmtShort(it.gasAt)}</div>
+         </div>`
+      : '';
+
+    row.innerHTML = `
+      <div class="topline">
+        <div class="name">${it.address}</div>
+        <div class="meta">
+          <span class="badge">🗓 ${it.pickup}</span>
+          <button class="icon-btn" title="Remove" data-id="${it.id}" data-act="delete">–</button>
+        </div>
+      </div>
+      <div class="actions">
+        <div class="toggleWrap">
+          <label class="toggle"><input type="checkbox" data-id="${it.id}" data-act="out" ${it.out?'checked':''}> Out</label>
+          ${it.out && it.outBy ? `<div><span class="byname" data-id="${it.id}" data-kind="out">(${it.outBy})</span></div>` : ''}
+          <div class="hintline" id="hint-out-${it.id}">↳ Ticked ${fmtShort(it.outAt)}</div>
+        </div>
+
+        <div class="toggleWrap">
+          <label class="toggle"><input type="checkbox" data-id="${it.id}" data-act="back" ${it.back?'checked':''}> Back</label>
+          ${it.back && it.backBy ? `<div><span class="byname" data-id="${it.id}" data-kind="back">(${it.backBy})</span></div>` : ''}
+          <div class="hintline" id="hint-back-${it.id}">↳ Ticked ${fmtShort(it.backAt)}</div>
+        </div>
+
+        ${gasToggle}
+
+        <a class="maplink" href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(it.address+', Queenstown')}" target="_blank" rel="noopener">Address map</a>
+        <button class="btn ghost" data-id="${it.id}" data-act="setpin">${it.pinLat && it.pinLng ? 'Edit pin' : 'Set pin'}</button>
+      </div>
+
+      ${it.pinLat && it.pinLng ? `<div class="mini-map" data-for="${it.id}"></div>` : ''}
+
+      <div class="noteRow">
+        <textarea class="note" data-id="${it.id}" data-act="note" maxlength="120" placeholder="Notes">${it.note?it.note.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'):''}</textarea>
+      </div>
+    `;
+    listEl.appendChild(row);
+  });
+
+  document.querySelectorAll('textarea.note').forEach(resizeNote);
+}
+
+function resizeNote(el){
+  if(!el) return;
+  el.style.height = 'auto';
+  const h = Math.min(el.scrollHeight, 78);
+  el.style.height = Math.max(30, h) + 'px';
+}
+
+// Delete & buttons & byname
+function verifyPasscode(){
+  const entered = prompt('Enter passcode to confirm delete:');
+  if (entered !== '5952') { alert('Incorrect passcode.'); return false; }
+  return true;
+}
+listEl.addEventListener('click', (e)=>{
+  const b = e.target.closest('button.btn, button.icon-btn');
+  if (b){
+    const id = b.getAttribute('data-id'); const act = b.getAttribute('data-act');
+    if (act==='setpin'){ /* not wired in this minimal repro */ return; }
+    if (act==='delete'){
+      if (confirm('Remove this address?') && verifyPasscode()){
+        state = state.filter(x => x.id !== id);
+        saveLocal(); render();
+      }
+    }
+    return;
+  }
+  const s = e.target.closest('.byname'); if(!s) return;
+  e.preventDefault(); e.stopPropagation();
+  const id = s.getAttribute('data-id');
+  const kind = s.getAttribute('data-kind');
+  const el = document.getElementById(`hint-${kind}-${id}`);
+  if (!el) return;
+  el.classList.add('show');
+  if (el._t1) clearTimeout(el._t1);
+  el._t1 = setTimeout(()=>{ el.classList.remove('show'); }, 4000);
+});
+
+// checkbox change
+listEl.addEventListener('change', async (e)=>{
+  const cb = e.target.closest('input[type=checkbox]'); if(!cb) return;
+  const id = cb.getAttribute('data-id'); const act = cb.getAttribute('data-act');
+  const idx = state.findIndex(x=>x.id===id); if (idx<0) return;
+  if (!userName){
+    const v = prompt('Your name (for activity log):', userName || '');
+    if (v===null || !v.trim()){ cb.checked = !cb.checked; return; }
+    userName = v.trim(); localStorage.setItem(LS_USER, userName);
+  }
+  state[idx][act] = cb.checked;
+  const t = Date.now();
+  if (act==='out'){ state[idx].outBy=userName; state[idx].outAt=t; }
+  if (act==='back'){ state[idx].backBy=userName; state[idx].backAt=t; }
+  if (act==='gasReplace'){ state[idx].gasBy=userName; state[idx].gasAt=t; }
+  state[idx].updatedAt = t;
+  saveLocal(); render();
+});
+
+// Init
+render();
+</script>
+</body>
+</html>
