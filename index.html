@@ -1,0 +1,408 @@
+
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Bin Back In Solutions — Live Sync</title>
+<style>
+  :root{ --bg:#f7f7fb; --card:#ffffff; --ink:#0f172a; --muted:#6b7280; --border:#e5e7eb; --brand:#2563eb; }
+  @media (prefers-color-scheme: dark){
+    :root{ --bg:#0b1020; --card:#0f1529; --ink:#e5e7eb; --muted:#9aa1b2; --border:#2a3352; --brand:#3b82f6; }
+  }
+  html,body{margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif}
+  header{position:sticky;top:0;background:var(--card);border-bottom:1px solid var(--border);
+    padding:10px 12px;display:flex;align-items:center;gap:8px;z-index:10;flex-wrap:wrap}
+  .brand{font-weight:800;font-size:18px}
+  .spacer{flex:1}
+  .btn{padding:10px 14px;border:1px solid var(--border);border-radius:12px;background:var(--card);cursor:pointer;font-weight:600}
+  .seg{display:flex;gap:6px;background:var(--bg);padding:4px;border-radius:12px;border:1px solid var(--border)}
+  .seg button{padding:8px 12px;border:0;border-radius:10px;background:transparent;font-weight:600;color:var(--muted)}
+  .seg button.active{background:var(--card);color:var(--ink);border:1px solid var(--border)}
+  main{max-width:920px;margin:0 auto;padding:12px}
+  .toolbar{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0}
+  .search{flex:1;display:flex;align-items:center;gap:8px;border:1px solid var(--border);
+    background:var(--card);padding:8px 12px;border-radius:12px;min-width:180px}
+  .search input{border:0;outline:0;background:transparent;color:var(--ink);width:100%;font-size:16px}
+  .addr{display:grid;gap:10px;border:1px solid var(--border);border-radius:16px;padding:14px 12px;margin-bottom:10px;background:var(--card)}
+  .topline{display:flex;align-items:center;gap:10px;justify-content:space-between;flex-wrap:wrap}
+  .name{font-weight:800}
+  .meta{color:var(--muted);font-size:12px;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  .badge{border:1px solid var(--border);border-radius:999px;padding:6px 10px;display:inline-flex;align-items:center;gap:6px}
+  .actions{display:flex;gap:12px 14px;align-items:flex-start;flex-wrap:wrap}
+  .actions > *{flex:0 0 auto;}
+  .toggle{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--border);border-radius:999px;padding:8px 12px}
+  .icon-btn{border:0;background:transparent;font-size:18px;line-height:1;padding:2px 6px;border-radius:4px;color:var(--muted);cursor:pointer}
+  .maplink{border:1px solid var(--border);border-radius:999px;padding:8px 12px;text-decoration:none}
+  .note{width:100%;font-size:16px;line-height:1.35;padding:6px 10px;border:1px solid var(--border);border-radius:10px;resize:none;overflow:hidden;height:30px;min-height:30px;max-height:78px;background:transparent}
+  .note::placeholder{color:var(--muted);opacity:.75}
+  .toggleWrap{display:flex;flex-direction:column;align-items:flex-start;gap:6px;min-height:72px}
+  .statusline{height:22px;line-height:22px;font-size:13px;color:var(--muted)}
+  .statusline .label{font-weight:700;color:var(--ink)}
+  .statusline .who{font-weight:700}
+  .statusline .time{opacity:.9}
+  .banner{display:flex;gap:8px;align-items:center;border:1px dashed var(--border);background:#fff5; padding:8px 12px;border-radius:10px;font-size:12px}
+  details.diag{margin:14px 0;border:1px solid var(--border);border-radius:12px;background:var(--card)}
+  details.diag > summary{cursor:pointer;padding:10px 12px;font-weight:700}
+  details.diag .box{padding:10px 12px;border-top:1px solid var(--border);font-size:14px}
+  .kv{display:grid;grid-template-columns:190px 1fr;gap:6px 10px}
+  .ok{color:#065f46;font-weight:700}
+  .bad{color:#b91c1c;font-weight:700}
+  code.rules{display:block;white-space:pre-wrap;background:#f1f5f9;border:1px solid #e5e7eb;border-radius:8px;padding:8px;font-size:12px}
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">Bin Back In Solutions</div>
+  <div class="spacer"></div>
+  <div class="seg" id="daySeg">
+    <button data-day="All" class="active">All</button>
+    <button data-day="Tuesday">Tue</button>
+    <button data-day="Wednesday">Wed</button>
+    <button data-day="Thursday">Thu</button>
+    <button data-day="Friday">Fri</button>
+  </div>
+  <button id="addBtn" class="btn">+ Address</button>
+  <button id="userBtn" class="btn">User</button>
+</header>
+
+<main>
+  <div class="toolbar">
+    <div class="search">
+      <span>🔎</span><input id="search" placeholder="Search address…" />
+    </div>
+    <button id="refresh" class="btn">Refresh</button>
+    <button id="optOut" class="btn">Opt Out</button>
+    <button id="optBack" class="btn">Opt Back</button>
+    <button id="export" class="btn">Export</button>
+    <input id="file" type="file" accept=".json" style="display:none">
+    <button id="importBtn" class="btn">Import</button>
+    <button id="createOne" class="btn">Create Sample</button>
+  </div>
+
+  <div id="status" class="banner">Booting…</div>
+  <details class="diag" open>
+    <summary>Environment diagnostics</summary>
+    <div class="box">
+      <div class="kv">
+        <div>Origin (domain)</div><div id="kv-origin"></div>
+        <div>Authorized domain?</div><div id="kv-domain-ok">—</div>
+        <div>Anonymous auth enabled?</div><div id="kv-anon-ok">—</div>
+        <div>Signed in?</div><div id="kv-signed-in">—</div>
+        <div>Firestore read/write?</div><div id="kv-fs-ok">—</div>
+      </div>
+      <p id="kv-note" style="margin-top:10px;color:#6b7280"></p>
+      <div style="margin-top:10px">
+        <strong>Recommended Firestore rules (paste + Publish):</strong>
+        <code class="rules">rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{document=**} {
+      allow read, write: if request.auth != null;
+    }
+  }
+}</code>
+      </div>
+    </div>
+  </details>
+
+  <div id="debug" style="display:none;font-size:12px;color:#b91c1c;background:#fff1f2;border:1px solid #fecdd3;border-radius:10px;padding:8px;margin-top:8px;white-space:pre-wrap"></div>
+
+  <h2 style="margin:10px 0 12px 0;">Queenstown — Addresses</h2>
+  <div id="list"></div>
+</main>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-app.js";
+import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-auth.js";
+import { getFirestore, collection, doc, setDoc, updateDoc, deleteDoc, onSnapshot, getDocs, writeBatch, query, orderBy } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-firestore.js";
+
+// ==== Firebase config (baked in) ====
+const firebaseConfig = {
+  apiKey: "AIzaSyAaDT6hFD38_P1AhQMF_vT18tXG9_pp8Sw",
+  authDomain: "binbackinsolutions.firebaseapp.com",
+  projectId: "binbackinsolutions",
+  storageBucket: "binbackinsolutions.firebasestorage.app",
+  messagingSenderId: "740345071529",
+  appId: "1:740345071529:web:e960f05ba0c982194126b8",
+  measurementId: "G-6XK5H9LWWK"
+};
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+
+// === Diagnostics ===
+const $=s=>document.querySelector(s);
+const statusEl=$("#status"); const debugEl=$("#debug");
+const kvOrigin=$("#kv-origin"), kvDom=$("#kv-domain-ok"), kvAnon=$("#kv-anon-ok"), kvSigned=$("#kv-signed-in"), kvFs=$("#kv-fs-ok"), kvNote=$("#kv-note");
+kvOrigin.textContent = location.origin;
+function mark(el, ok, msgOk="OK", msgBad="Not allowed"){ el.innerHTML = ok ? `<span class="ok">${msgOk}</span>` : `<span class="bad">${msgBad}</span>`; }
+function setBanner(t){ statusEl.textContent = t; }
+window.addEventListener('error', (e)=>{ setBanner("Error: "+(e.message||'Unknown')); debugEl.style.display='block'; debugEl.textContent=(e.error&&e.error.stack)||e.message||String(e); });
+
+async function testAuthAndDb(){
+  setBanner("Signing in…");
+  let user=null; let authErr=null;
+  try{ user = (await signInAnonymously(auth)).user; }catch(e){ authErr = e; }
+  if(user){ mark(kvAnon,true,"Enabled"); mark(kvSigned,true,"Yes"); }
+  else{
+    mark(kvSigned,false,"No");
+    const code = authErr && authErr.code || "unknown";
+    if(code.includes("admin-restricted")||code.includes("operation-not-allowed")){
+      mark(kvAnon,false,"Disabled");
+      kvNote.innerHTML = "Enable <b>Anonymous</b> in Firebase → Auth → Sign-in method, and add <b>lijahone.github.io</b> to <b>Authorized domains</b>.";
+    }else if(code.includes("unauthorized-domain")){
+      mark(kvDom,false,"Not listed");
+      kvNote.innerHTML = "Add <b>lijahone.github.io</b> (and optionally <b>localhost</b>) to Firebase → Auth → Settings → Authorized domains.";
+    }else{
+      kvNote.textContent = "Auth error: "+code;
+    }
+    setBanner("Auth failed — " + (authErr && authErr.code ? authErr.code : "see debug"));
+    debugEl.style.display='block'; debugEl.textContent = String(authErr);
+    return false;
+  }
+
+  setBanner("Checking Firestore…");
+  try{
+    const id = "diag-"+Date.now();
+    await setDoc(doc(db,"diagnostics",id), { ok:true, at:Date.now(), origin:location.origin });
+    const snap = await getDocs(collection(db,"diagnostics"));
+    mark(kvFs, !snap.empty, "Read/Write OK", "Blocked");
+    setBanner("Live — ready");
+    return true;
+  }catch(e){
+    mark(kvFs,false,"Blocked");
+    setBanner("Firestore blocked — see rules");
+    debugEl.style.display='block'; debugEl.textContent = String(e);
+    kvNote.innerHTML = "Update Firestore <b>Rules</b> to allow authenticated users (paste from the box above and click <b>Publish</b>).";
+    return false;
+  }
+}
+
+// ==== App logic ====
+const LS_USER='bbi_user_name';
+const listEl=$("#list");
+const slug=s=>s.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'');
+const fmtShort=ts=>{ if(!ts) return ''; const d=new Date(ts); return d.toLocaleTimeString([], {hour:'numeric',minute:'2-digit'})+' · '+d.toLocaleDateString([], {weekday:'short'})+' '+d.toLocaleDateString([], {day:'2-digit',month:'short'}); };
+let userName=localStorage.getItem(LS_USER)||'';
+let filterDay='All', filterText='';
+
+document.getElementById('daySeg').addEventListener('click', (e)=>{
+  const b=e.target.closest('button'); if(!b) return;
+  document.querySelectorAll('#daySeg button').forEach(x=>x.classList.remove('active'));
+  b.classList.add('active'); filterDay=b.getAttribute('data-day'); render();
+});
+document.getElementById('search').addEventListener('input', e=>{ filterText=e.target.value.toLowerCase(); render(); });
+
+let ADDRS = [];
+function applyFilters(arr){ return arr.filter(it=> (filterDay==='All'||it.pickup===filterDay) && (!filterText||it.address.toLowerCase().includes(filterText))); }
+function statusLine(textLabel, who, when){ return (who && when) ? `<span class="label">${textLabel}</span> — <span class="who">${who}</span> — <span class="time">${fmtShort(when)}</span>` : '&nbsp;'; }
+function render(){
+  listEl.innerHTML='';
+  const sorted = ADDRS.slice().sort((a,b)=>{
+    const ra = (typeof a.rank === 'number') ? a.rank : 1e9;
+    const rb = (typeof b.rank === 'number') ? b.rank : 1e9;
+    if(ra !== rb) return ra - rb;
+    return (a.address||'').localeCompare(b.address||'');
+  });
+  for(const it of applyFilters(sorted)){
+    const row=document.createElement('div'); row.className='addr';
+    const gas=it.gas==='Yes'?`
+      <div class="toggleWrap">
+        <label class="toggle"><input type="checkbox" data-id="${it.id}" data-act="gasReplace" ${it.gasReplace?'checked':''}> Gas replace</label>
+        <div class="statusline" id="stat-gas-${it.id}">${statusLine('Gas', it.gasBy, it.gasAt)}</div>
+      </div>`:'';
+    row.innerHTML=`
+      <div class="topline">
+        <div class="name">${it.address||''}</div>
+        <div class="meta">
+          <span class="badge">🗓 ${it.pickup||''}</span>
+          <button class="icon-btn" data-id="${it.id}" data-act="delete" title="Remove">–</button>
+        </div>
+      </div>
+      <div class="actions">
+        <div class="toggleWrap">
+          <label class="toggle"><input type="checkbox" data-id="${it.id}" data-act="out" ${it.out?'checked':''}> Out</label>
+          <div class="statusline" id="stat-out-${it.id}">${statusLine('Out', it.outBy, it.outAt)}</div>
+        </div>
+        <div class="toggleWrap">
+          <label class="toggle"><input type="checkbox" data-id="${it.id}" data-act="back" ${it.back?'checked':''}> Back</label>
+          <div class="statusline" id="stat-back-${it.id}">${statusLine('Back', it.backBy, it.backAt)}</div>
+        </div>
+        ${gas}
+        <a class="maplink" href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent((it.address||'')+', Queenstown')}" target="_blank" rel="noopener">Address map</a>
+      </div>
+      <textarea class="note" data-id="${it.id}" maxlength="120" placeholder="Notes">${it.note?it.note.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'):''}</textarea>
+    `;
+    listEl.appendChild(row);
+  }
+  document.querySelectorAll('textarea.note').forEach(el=>{ el.style.height='auto'; const h=Math.min(el.scrollHeight,78); el.style.height=Math.max(30,h)+'px'; });
+}
+function getById(id){ return ADDRS.find(x=>x.id===id); }
+
+async function seedIfEmpty(){
+  const col = collection(db, "addresses");
+  const existing = await getDocs(col);
+  if(existing.empty){
+    const batch = writeBatch(db);
+    const SEED=[
+      {"address":"30 Woodlands Close","pickup":"Tuesday","gas":"No"},
+      {"address":"6 Goldrush Way","pickup":"Tuesday","gas":"Yes"},
+      {"address":"20 Goldleaf","pickup":"Tuesday","gas":"Yes"},
+      {"address":"2/64 Marina Drive","pickup":"Tuesday","gas":"Yes"},
+      {"address":"34a Brisbane Street","pickup":"Tuesday","gas":"No"},
+      {"address":"1/47 Lomond Cres","pickup":"Wednesday","gas":"No"},
+      {"address":"39 Lomond Cres","pickup":"Wednesday","gas":"No"},
+      {"address":"41 Lomond Cres","pickup":"Wednesday","gas":"No"},
+      {"address":"2/11 Gum Lane","pickup":"Wednesday","gas":"No"},
+      {"address":"22C Malaghan Street","pickup":"Wednesday","gas":"No"},
+      {"address":"78 Highview","pickup":"Wednesday","gas":"No"},
+      {"address":"70 Panorama Terrace","pickup":"Wednesday","gas":"No"},
+      {"address":"7 Peregrine Place","pickup":"Wednesday","gas":"No"},
+      {"address":"101 Hensman Road","pickup":"Wednesday","gas":"Yes"},
+      {"address":"18 Amber Close","pickup":"Thursday","gas":"Yes"},
+      {"address":"6 Redfern Terrace","pickup":"Thursday","gas":"Yes"},
+      {"address":"14 Cumberland Road","pickup":"Thursday","gas":"No"},
+      {"address":"12 Corriedale Road","pickup":"Friday","gas":"No"},
+      {"address":"42 Muster Road","pickup":"Friday","gas":"Yes"}
+    ];
+    SEED.forEach((o,idx)=>{
+      const id = slug(o.address);
+      const ref = doc(db, "addresses", id);
+      batch.set(ref, {
+        address:o.address, pickup:o.pickup, gas:o.gas,
+        out:false, outBy:"", outAt:0,
+        back:false, backBy:"", backAt:0,
+        gasReplace:false, gasBy:"", gasAt:0,
+        lat:null,lng:null,pinLat:null,pinLng:null,
+        note:"", updatedAt:Date.now(),
+        rank: idx
+      });
+    });
+    await batch.commit();
+  }
+}
+
+// --- Debounced note saving to prevent focus loss ---
+const SAVE_T = new Map();
+function queueNoteSave(id, val){
+  if(SAVE_T.has(id)) clearTimeout(SAVE_T.get(id));
+  SAVE_T.set(id, setTimeout(async ()=>{
+    try{ await updateDoc(doc(db,"addresses",id), { note:val, updatedAt:Date.now() }); }
+    catch(err){ console.error(err); }
+    SAVE_T.delete(id);
+  }, 600)); // save 600ms after you stop typing
+}
+
+async function start(){
+  const ok = await testAuthAndDb();
+  if(!ok) return;
+  setBanner("Connecting to addresses…");
+  await seedIfEmpty();
+
+  const col = collection(db, "addresses");
+  const q = query(col, orderBy("address"));
+  onSnapshot(q, (snap)=>{
+    ADDRS = snap.docs.map(d=>({ id:d.id, ...d.data() }));
+    render();
+    setBanner("Live — synced");
+  }, (err)=>{
+    setBanner("Firestore error — "+(err && err.code ? err.code : "see debug"));
+    debugEl.style.display='block'; debugEl.textContent = String(err);
+  });
+}
+
+// Buttons & handlers
+document.getElementById('refresh').addEventListener('click', ()=> render());
+document.getElementById('userBtn').addEventListener('click', ()=>{
+  const v=prompt('Set your display name:', userName||''); if(v===null) return;
+  userName=v.trim(); localStorage.setItem(LS_USER, userName);
+});
+document.getElementById('addBtn').addEventListener('click', async ()=>{
+  const addr=prompt('New address:'); if(!addr||!addr.trim()) return;
+  const pickup=(prompt('Pickup day (Tue/Wed/Thu/Fri):','Tuesday')||'Tuesday').trim();
+  const gasAns=(prompt('Gas replacement required? (yes/no):','no')||'no').trim().toLowerCase();
+  const gas = (gasAns==='yes'||gasAns==='y') ? 'Yes' : 'No';
+  const id=slug(addr);
+  const obj={address:addr.trim(),pickup,gas,
+    out:false,outBy:'',outAt:0,
+    back:false,backBy:'',backAt:0,
+    gasReplace:false,gasBy:'',gasAt:0,
+    lat:null,lng:null,pinLat:null,pinLng:null,
+    note:'', updatedAt:Date.now(), rank: 999999
+  };
+  try{ await setDoc(doc(db,"addresses",id), obj); }
+  catch(err){ alert('Add failed'); console.error(err); }
+});
+document.getElementById('createOne').addEventListener('click', async ()=>{
+  try{
+    const id = 'sample-'+Date.now();
+    await setDoc(doc(db,'addresses',id), {
+      address:'Sample Address '+new Date().toLocaleTimeString(),
+      pickup:'Tuesday', gas:'No',
+      out:false, back:false, gasReplace:false,
+      note:'', updatedAt:Date.now(), rank: 999999
+    });
+    alert('Created a sample doc.');
+  }catch(e){
+    alert('Failed to create sample: '+e);
+  }
+});
+
+// Toggle handlers
+document.getElementById('list').addEventListener('change', async (e)=>{
+  const cb=e.target.closest('input[type=checkbox]'); if(!cb) return;
+  const id=cb.getAttribute('data-id'), act=cb.getAttribute('data-act');
+  const it=getById(id); if(!it) return;
+
+  if(cb.checked){
+    if(!userName){
+      const v=prompt('Your name (for activity log):','');
+      if(v===null||!v.trim()){ cb.checked=!cb.checked; return; }
+      userName=v.trim(); localStorage.setItem(LS_USER,userName);
+    }
+    const t=Date.now();
+    const patch={ updatedAt:t };
+    if(act==='out'){ patch.out=true; patch.outBy=userName; patch.outAt=t; }
+    if(act==='back'){ patch.back=true; patch.backBy=userName; patch.backAt=t; }
+    if(act==='gasReplace'){ patch.gasReplace=true; patch.gasBy=userName; patch.gasAt=t; }
+    try{ await updateDoc(doc(db,"addresses",id), patch); }
+    catch(err){ alert('Update failed'); console.error(err); }
+  }else{
+    const t=Date.now();
+    const patch={ updatedAt:t };
+    if(act==='out'){ patch.out=false; patch.outBy=""; patch.outAt=0; }
+    if(act==='back'){ patch.back=false; patch.backBy=""; patch.backAt=0; }
+    if(act==='gasReplace'){ patch.gasReplace=false; patch.gasBy=""; patch.gasAt=0; }
+    try{ await updateDoc(doc(db,"addresses",id), patch); }
+    catch(err){ alert('Update failed'); console.error(err); }
+  }
+});
+
+// Notes: debounce saves so typing doesn't lose focus
+document.getElementById('list').addEventListener('input', (e)=>{
+  const ta=e.target.closest('textarea.note'); if(!ta) return;
+  const id=ta.getAttribute('data-id');
+  const it=getById(id); if(!it) return;
+  const val = ta.value.slice(0,120);
+  // Update local state immediately (so it stays in sync visually)
+  it.note = val;
+  // Autosize height
+  const h=Math.min(ta.scrollHeight,78); ta.style.height=Math.max(30,h)+'px';
+  // Queue a debounced save (no re-render until you pause typing)
+  queueNoteSave(id, val);
+});
+document.getElementById('list').addEventListener('blur', (e)=>{
+  const ta=e.target.closest('textarea.note'); if(!ta) return;
+  const id=ta.getAttribute('data-id');
+  const val=ta.value.slice(0,120);
+  // Force an immediate save on blur
+  queueNoteSave(id, val);
+}, true);
+
+// Kick off
+start();
+</script>
+</body>
+</html>
