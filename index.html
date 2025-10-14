@@ -1,0 +1,228 @@
+
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Bin Back In Solutions — Live Sync</title>
+<style>
+  :root{ --bg:#f7f7fb; --card:#ffffff; --ink:#0f172a; --muted:#6b7280; --border:#e5e7eb; --brand:#2563eb; }
+  @media (prefers-color-scheme: dark){
+    :root{ --bg:#0b1020; --card:#0f1529; --ink:#e5e7eb; --muted:#9aa1b2; --border:#2a3352; --brand:#3b82f6; }
+  }
+  html,body{margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif}
+  header{position:sticky;top:0;background:var(--card);border-bottom:1px solid var(--border);
+    padding:10px 12px;display:flex;align-items:center;gap:8px;z-index:10;flex-wrap:wrap}
+  .brand{font-weight:800;font-size:18px}
+  .spacer{flex:1}
+  .btn{padding:10px 14px;border:1px solid var(--border);border-radius:12px;background:var(--card);cursor:pointer;font-weight:600}
+  .seg{display:flex;gap:6px;background:var(--bg);padding:4px;border-radius:12px;border:1px solid var(--border)}
+  .seg button{padding:8px 12px;border:0;border-radius:10px;background:transparent;font-weight:600;color:var(--muted)}
+  .seg button.active{background:var(--card);color:var(--ink);border:1px solid var(--border)}
+  main{max-width:920px;margin:0 auto;padding:12px}
+  .toolbar{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0}
+  .search{flex:1;display:flex;align-items:center;gap:8px;border:1px solid var(--border);
+    background:var(--card);padding:8px 12px;border-radius:12px;min-width:180px}
+  .search input{border:0;outline:0;background:transparent;color:var(--ink);width:100%;font-size:16px}
+  .addr{display:grid;gap:10px;border:1px solid var(--border);border-radius:16px;padding:14px 12px;margin-bottom:10px;background:var(--card);position:relative}
+  .topline{display:flex;align-items:center;gap:10px;justify-content:space-between;flex-wrap:wrap}
+  .name{font-weight:800}
+  .meta{color:var(--muted);font-size:12px;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  .badge{border:1px solid var(--border);border-radius:999px;padding:6px 10px;display:inline-flex;align-items:center;gap:6px}
+  .actions{display:flex;gap:12px 14px;align-items:flex-start;flex-wrap:wrap}
+  .actions > *{flex:0 0 auto;}
+  .toggle{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--border);border-radius:999px;padding:8px 12px}
+  .icon-btn{border:1px solid var(--border);background:var(--card);font-size:20px;line-height:1;min-width:36px;min-height:32px;
+    padding:4px 10px;border-radius:10px;color:var(--muted);cursor:pointer;pointer-events:auto;touch-action:manipulation}
+  .icon-btn:active{transform:scale(0.98)}
+  .maplink{border:1px solid var(--border);border-radius:999px;padding:8px 12px;text-decoration:none}
+  .note{width:100%;font-size:16px;line-height:1.35;padding:6px 10px;border:1px solid var(--border);border-radius:10px;resize:none;overflow:hidden;height:30px;min-height:30px;max-height:78px;background:transparent}
+  .note::placeholder{color:var(--muted);opacity:.75}
+  .toggleWrap{display:flex;flex-direction:column;align-items:flex-start;gap:6px;min-height:72px}
+  .statusline{height:22px;line-height:22px;font-size:13px;color:var(--muted)}
+  .statusline .label{font-weight:700;color:var(--ink)}
+  .statusline .who{font-weight:700}
+  .statusline .time{opacity:.9}
+  .banner{display:flex;gap:8px;align-items:center;border:1px dashed var(--border);background:#fff5; padding:8px 12px;border-radius:10px;font-size:12px}
+  details.diag{margin:14px 0;border:1px solid var(--border);border-radius:12px;background:var(--card)}
+  details.diag > summary{cursor:pointer;padding:10px 12px;font-weight:700}
+  details.diag .box{padding:10px 12px;border-top:1px solid var(--border);font-size:14px}
+  .kv{display:grid;grid-template-columns:190px 1fr;gap:6px 10px}
+  .ok{color:#065f46;font-weight:700}
+  .bad{color:#b91c1c;font-weight:700}
+  code.rules{display:block;white-space:pre-wrap;background:#f1f5f9;border:1px solid #e5e7eb;border-radius:8px;padding:8px;font-size:12px}
+  .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">Bin Back In Solutions</div>
+  <div class="spacer"></div>
+  <div class="seg" id="daySeg">
+    <button data-day="All" class="active">All</button>
+    <button data-day="Tuesday">Tue</button>
+    <button data-day="Wednesday">Wed</button>
+    <button data-day="Thursday">Thu</button>
+    <button data-day="Friday">Fri</button>
+  </div>
+  <button id="addBtn" class="btn" type="button">+ Address</button>
+  <button id="userBtn" class="btn" type="button">User</button>
+</header>
+
+<main>
+  <div class="toolbar">
+    <div class="search">
+      <span>🔎</span><input id="search" placeholder="Search address…" />
+    </div>
+    <button id="refresh" class="btn" type="button">Refresh</button>
+    <button id="optOut" class="btn" type="button">Opt Out</button>
+    <button id="optBack" class="btn" type="button">Opt Back</button>
+    <button id="export" class="btn" type="button">Export</button>
+    <input id="file" type="file" accept=".json" style="display:none">
+    <button id="importBtn" class="btn" type="button">Import</button>
+    <button id="createOne" class="btn" type="button">Create Sample</button>
+  </div>
+
+  <div id="status" class="banner">Booting…</div>
+  <h2 style="margin:10px 0 12px 0;">Queenstown — Addresses</h2>
+  <div id="list"></div>
+</main>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-app.js";
+import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-auth.js";
+import { getFirestore, collection, doc, setDoc, updateDoc, deleteDoc, onSnapshot, getDocs, writeBatch, query, orderBy } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyAaDT6hFD38_P1AhQMF_vT18tXG9_pp8Sw",
+  authDomain: "binbackinsolutions.firebaseapp.com",
+  projectId: "binbackinsolutions",
+  storageBucket: "binbackinsolutions.firebasestorage.app",
+  messagingSenderId: "740345071529",
+  appId: "1:740345071529:web:e960f05ba0c982194126b8",
+  measurementId: "G-6XK5H9LWWK"
+};
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+
+const $=s=>document.querySelector(s);
+const statusEl=$("#status");
+function setBanner(t){ statusEl.textContent = t; }
+
+async function start(){
+  setBanner("Signing in…");
+  await signInAnonymously(auth);
+  if(!localStorage.getItem('bbi_user_name')){
+    const anonName = "User-" + (auth.currentUser?.uid?.slice(-4) || Math.floor(Math.random()*10000).toString().padStart(4,'0'));
+    localStorage.setItem('bbi_user_name', anonName);
+  }
+  setBanner("Connecting…");
+
+  // seed if empty
+  const col = collection(db, "addresses");
+  const existing = await getDocs(col);
+  if(existing.empty){
+    const batch = writeBatch(db);
+    ["Sample Address 1","Sample Address 2"].forEach((a,i)=>{
+      const id = a.toLowerCase().replace(/[^a-z0-9]+/g,'-');
+      batch.set(doc(db,"addresses",id), {address:a,pickup:'Tuesday',gas:'No',out:false,back:false,note:'',rank:i,updatedAt:Date.now()});
+    });
+    await batch.commit();
+  }
+
+  const q = query(collection(db,"addresses"), orderBy("address"));
+  onSnapshot(q, (snap)=>{
+    const ADDRS = snap.docs.map(d=>({ id:d.id, ...d.data() }));
+    render(ADDRS);
+    setBanner("Live — synced");
+  });
+}
+
+const listEl=$("#list");
+function render(ADDRS){
+  listEl.innerHTML='';
+  for(const it of ADDRS){
+    const row=document.createElement('div'); row.className='addr'; row.dataset.id=it.id;
+    row.innerHTML=`
+      <div class="topline">
+        <div class="name">${it.address||''}</div>
+        <div class="meta">
+          <span class="badge">🗓 ${it.pickup||''}</span>
+          <button class="icon-btn" type="button" data-act="delete" data-id="${it.id}" aria-label="Delete address">
+            <span aria-hidden="true">–</span><span class="sr-only">Delete</span>
+          </button>
+        </div>
+      </div>
+      <div class="actions">
+        <label class="toggle"><input type="checkbox" data-id="${it.id}" data-act="out" ${it.out?'checked':''}> Out</label>
+        <label class="toggle"><input type="checkbox" data-id="${it.id}" data-act="back" ${it.back?'checked':''}> Back</label>
+        <a class="maplink" href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent((it.address||'')+', Queenstown')}" target="_blank" rel="noopener">Address map</a>
+      </div>
+      <textarea class="note" data-id="${it.id}" maxlength="120" placeholder="Notes">${it.note?it.note.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'):''}</textarea>
+    `;
+    listEl.appendChild(row);
+  }
+}
+
+// Checkbox & notes
+listEl.addEventListener('change', async (e)=>{
+  const cb=e.target.closest('input[type=checkbox]'); if(!cb) return;
+  const id=cb.getAttribute('data-id'), act=cb.getAttribute('data-act');
+  const who = localStorage.getItem('bbi_user_name') || ("User-" + (auth.currentUser?.uid?.slice(-4)||'0000'));
+  const t=Date.now();
+  const patch={ updatedAt:t };
+  if(act==='out'){ patch.out=cb.checked; patch.outBy=cb.checked?who:""; patch.outAt=cb.checked?t:0; }
+  if(act==='back'){ patch.back=cb.checked; patch.backBy=cb.checked?who:""; patch.backAt=cb.checked?t:0; }
+  try{ await updateDoc(doc(db,"addresses",id), patch); }catch(e){ alert('Update failed'); }
+});
+const SAVE_T = new Map();
+function queueNoteSave(id,val){
+  if(SAVE_T.has(id)) clearTimeout(SAVE_T.get(id));
+  SAVE_T.set(id, setTimeout(()=>updateDoc(doc(db,"addresses",id), {note:val,updatedAt:Date.now()}), 600));
+}
+listEl.addEventListener('input',(e)=>{
+  const ta=e.target.closest('textarea.note'); if(!ta) return;
+  const id=ta.getAttribute('data-id'); const v=ta.value.slice(0,120);
+  ta.style.height='auto'; ta.style.height=Math.max(30, Math.min(ta.scrollHeight,78))+'px';
+  queueNoteSave(id,v);
+});
+
+// Delete: click / touch / long‑press
+async function handleDelete(id){
+  if(!confirm('Remove this address?')) return;
+  const code = prompt('Enter passcode to confirm delete:');
+  if(code !== '5952'){ alert('Incorrect passcode'); return; }
+  try{ await deleteDoc(doc(db,'addresses',id)); }catch(e){ alert('Delete failed'); }
+}
+
+listEl.addEventListener('click', (e)=>{
+  const del = e.target.closest('[data-act="delete"]'); if(!del) return;
+  const id = del.getAttribute('data-id');
+  handleDelete(id);
+}, {passive:true});
+
+listEl.addEventListener('touchend', (e)=>{
+  const del = e.target.closest('[data-act="delete"]'); if(!del) return;
+  const id = del.getAttribute('data-id');
+  handleDelete(id);
+}, {passive:true});
+
+// Long‑press anywhere on the card as a fallback (600ms)
+let pressTimer=null, pressTarget=null;
+listEl.addEventListener('touchstart', (e)=>{
+  const card = e.target.closest('.addr'); if(!card) return;
+  pressTarget = card;
+  clearTimeout(pressTimer);
+  pressTimer=setTimeout(()=>{
+    const id = pressTarget?.dataset?.id;
+    if(id) handleDelete(id);
+  }, 600);
+}, {passive:true});
+['touchmove','touchcancel','touchend'].forEach(ev=>listEl.addEventListener(ev, ()=>{ clearTimeout(pressTimer); pressTarget=null; }, {passive:true}));
+
+start();
+</script>
+</body>
+</html>
