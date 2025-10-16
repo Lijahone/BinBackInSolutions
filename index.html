@@ -1,0 +1,606 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Bin Back In Solutions</title>
+
+  <!-- Leaflet (mini-map & pin drop; no API key needed) -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <style>
+    :root {
+      --bg: #0f172a;
+      --card: #111827;
+      --muted: #94a3b8;
+      --text: #e5e7eb;
+      --accent: #22c55e;
+      --danger: #ef4444;
+      --warn: #f59e0b;
+      --border: #1f2937;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";
+      background: var(--bg);
+      color: var(--text);
+    }
+    header {
+      position: sticky; top: 0; z-index: 5;
+      background: linear-gradient(180deg, #0b1220, #0f172a 60%);
+      padding: 16px 14px 10px;
+      border-bottom: 1px solid var(--border);
+    }
+    h1 {
+      margin: 0 0 6px 0;
+      font-size: 20px;
+      letter-spacing: .4px;
+    }
+    .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+    select, input[type="text"], input[type="password"] {
+      background: #0b1020;
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 8px 10px;
+      outline: none;
+    }
+    .btn {
+      appearance: none;
+      border: 1px solid var(--border);
+      background: #0b1020;
+      color: var(--text);
+      padding: 8px 12px;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: transform .05s ease, background .2s ease, border-color .2s ease;
+      user-select: none;
+    }
+    .btn:hover { background: #0e1530; }
+    .btn:active { transform: translateY(1px) scale(0.99); }
+    .btn.accent { border-color: #14532d; background: #052e1b; }
+    .btn.warn { border-color: #5b3c05; background: #2a1b01; }
+    .btn.danger { border-color: #5f1218; background: #2a0205; }
+    .btn.ghost { background: transparent; }
+    .toolbar {
+      display: flex; gap: 8px; flex-wrap: wrap; align-items: center;
+      margin-top: 6px;
+    }
+    main { padding: 14px; }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 12px;
+    }
+    .list {
+      display: grid;
+      gap: 10px;
+      margin-top: 12px;
+    }
+    .item {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 10px;
+      align-items: start;
+      padding: 10px;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: #0b1020;
+    }
+    .item-head { font-weight: 600; }
+    .subtle { color: var(--muted); font-size: 12px; }
+    .item-controls {
+      display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end;
+    }
+    .pill { padding: 4px 8px; border-radius: 999px; border: 1px solid var(--border); font-size: 12px; }
+    .pill.ok { border-color: #14532d; color: #76e2a8; }
+    .pill.warn { border-color: #5b3c05; color: #facc15; }
+    .pill.muted { color: var(--muted); }
+    .muted { color: var(--muted); }
+
+    .grid {
+      display: grid; gap: 10px;
+      grid-template-columns: repeat(12, 1fr);
+    }
+    .grid > * { grid-column: span 12; }
+    @media (min-width: 900px) {
+      .grid > .span-6 { grid-column: span 6; }
+      .grid > .span-4 { grid-column: span 4; }
+      .grid > .span-8 { grid-column: span 8; }
+      .grid > .span-3 { grid-column: span 3; }
+      .grid > .span-9 { grid-column: span 9; }
+    }
+
+    #miniMap {
+      height: 260px;
+      width: 100%;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      background: #0b1020;
+    }
+
+    dialog {
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 0;
+      background: var(--card);
+      color: var(--text);
+      max-width: 560px;
+    }
+    dialog::backdrop { background: rgba(0,0,0,.55); }
+    .modal-head {
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .modal-body { padding: 14px; }
+    .modal-foot { padding: 10px 14px; border-top: 1px solid var(--border); display: flex; gap: 8px; justify-content: flex-end; }
+
+    .hint { font-size: 12px; color: var(--muted); margin-top: 6px; }
+    .spacer { height: 8px; }
+    .right { text-align: right; }
+    .nowrap { white-space: nowrap; }
+
+    /* Fix action buttons layout “locked in place” */
+    .fixed-controls { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+    .fixed-controls .btn { min-width: 90px; text-align: center; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Bin Back In Solutions</h1>
+    <div class="toolbar">
+      <select id="areaSelect" title="Area"></select>
+      <button class="btn" id="addAreaBtn">+ Area</button>
+
+      <select id="weekSelect" title="Week"></select>
+      <button class="btn" id="prevWeekBtn">&larr; Prev</button>
+      <button class="btn" id="nextWeekBtn">Next &rarr;</button>
+
+      <button class="btn ghost" id="settingsBtn">Settings</button>
+    </div>
+    <div class="hint">Choose area & calendar week, then manage addresses. “Open Map” now uses Apple Maps on iPhone and Google Maps elsewhere. Mini-map shows if you’ve set a pin.</div>
+  </header>
+
+  <main class="grid">
+    <section class="span-6">
+      <div class="card">
+        <div class="row" style="gap:6px; margin-bottom:8px;">
+          <input id="addrInput" type="text" placeholder="Add address (e.g., 56 Middleton Road, Queenstown)" style="flex:1;">
+          <button class="btn accent" id="addAddrBtn">+ Add</button>
+        </div>
+        <div id="list" class="list"></div>
+      </div>
+    </section>
+
+    <section class="span-6">
+      <div class="card">
+        <div id="miniMap" aria-label="Mini map preview"></div>
+        <div class="hint">Tap an address and choose “Drop Pin” to set coordinates for mini-map and faster navigation.</div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Delete with PIN -->
+  <dialog id="pinDialog">
+    <div class="modal-head">
+      <strong>Admin PIN required</strong>
+      <button class="btn ghost" onclick="closePin()">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="password" id="pinInput" placeholder="Enter PIN" style="width:100%;">
+      <div class="hint">Set/change your PIN in Settings. Default is <b>2580</b>.</div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn" onclick="closePin()">Cancel</button>
+      <button class="btn danger" onclick="confirmPin()">Confirm</button>
+    </div>
+  </dialog>
+
+  <!-- Settings -->
+  <dialog id="settingsDialog">
+    <div class="modal-head">
+      <strong>Settings</strong>
+      <button class="btn ghost" onclick="closeSettings()">✕</button>
+    </div>
+    <div class="modal-body">
+      <label class="subtle">Admin PIN</label>
+      <div class="row">
+        <input type="password" id="newPin" placeholder="New PIN (numbers only)">
+        <button class="btn warn" id="savePinBtn">Save PIN</button>
+      </div>
+      <div class="hint">This PIN is required to delete addresses. Default: 2580.</div>
+      <div class="spacer"></div>
+      <label class="subtle">Export / Import</label>
+      <div class="row">
+        <button class="btn" id="exportBtn">Export Data</button>
+        <input type="file" id="importFile" accept=".json">
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn" onclick="closeSettings()">Close</button>
+    </div>
+  </dialog>
+
+  <!-- Pin Drop modal -->
+  <dialog id="dropPinDialog">
+    <div class="modal-head">
+      <strong>Drop Pin</strong>
+      <button class="btn ghost" onclick="closeDropPin()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div id="dropPinMap" style="height:340px; border-radius:12px; border:1px solid var(--border);"></div>
+      <div class="hint">Tap on the map to set coordinates. Tap again to move the pin. “Save Pin” to store.</div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn" onclick="closeDropPin()">Cancel</button>
+      <button class="btn accent" id="savePinBtn">Save Pin</button>
+    </div>
+  </dialog>
+
+  <script>
+    /*********************
+     * Data persistence
+     *********************/
+    const store = {
+      load() {
+        try {
+          return JSON.parse(localStorage.getItem('bbs-data') || '{}');
+        } catch(e) { return {}; }
+      },
+      save(data) {
+        localStorage.setItem('bbs-data', JSON.stringify(data));
+      }
+    };
+
+    // Initial seed
+    const defaultState = {
+      pin: "2580",
+      areas: ["Queenstown"],
+      currentArea: "Queenstown",
+      // ISO week string e.g., "2025-W42"
+      currentWeek: isoWeekString(new Date()),
+      // addresses keyed by area -> week -> list
+      data: {
+        "Queenstown": {}
+      }
+    };
+
+    let state = Object.assign({}, defaultState, store.load());
+    if (!state.areas?.length) state.areas = ["Queenstown"];
+    if (!state.currentArea) state.currentArea = state.areas[0];
+    if (!state.currentWeek) state.currentWeek = isoWeekString(new Date());
+    if (!state.data) state.data = {"Queenstown": {}};
+
+    function saveState() { store.save(state); }
+
+    /*********************
+     * Helpers
+     *********************/
+    function isoWeekString(d) {
+      const date = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+      const dayNum = date.getUTCDay() || 7;
+      date.setUTCDate(date.getUTCDate() + 4 - dayNum);
+      const yearStart = new Date(Date.UTC(date.getUTCFullYear(),0,1));
+      const weekNum = Math.ceil((((date - yearStart) / 86400000) + 1)/7);
+      return `${date.getUTCFullYear()}-W${String(weekNum).padStart(2,'0')}`;
+    }
+    function shiftWeek(isoWeek, delta) {
+      const [y, w] = isoWeek.split('-W').map(Number);
+      const d = new Date(Date.UTC(y,0,4));
+      const day = d.getUTCDay() || 7;
+      const monday = new Date(d);
+      monday.setUTCDate(d.getUTCDate() - day + 1);
+      monday.setUTCDate(monday.getUTCDate() + (w - 1) * 7 + (delta * 7));
+      return isoWeekString(monday);
+    }
+    function weekLabel(iso) {
+      const [y, w] = iso.split('-W').map(Number);
+      const d = new Date(Date.UTC(y,0,4));
+      const day = d.getUTCDay() || 7;
+      const monday = new Date(d);
+      monday.setUTCDate(d.getUTCDate() - day + 1 + (w-1)*7);
+      const sunday = new Date(monday); sunday.setUTCDate(monday.getUTCDate()+6);
+      const fmt = (x)=> x.toLocaleDateString(undefined,{month:'short', day:'numeric'});
+      return `${iso} (${fmt(monday)} – ${fmt(sunday)})`;
+    }
+
+    function getList(area, week) {
+      state.data[area] ||= {};
+      state.data[area][week] ||= [];
+      return state.data[area][week];
+    }
+
+    function nowStamp() {
+      const d = new Date();
+      return d.toLocaleString();
+    }
+
+    function el(tag, attrs={}, ...children){
+      const e = document.createElement(tag);
+      for (const [k,v] of Object.entries(attrs||{})){
+        if (k === 'class') e.className = v;
+        else if (k.startsWith('on') && typeof v === 'function') e.addEventListener(k.slice(2), v);
+        else if (v != null) e.setAttribute(k, v);
+      }
+      for (const c of children){
+        if (typeof c === 'string') e.appendChild(document.createTextNode(c));
+        else if (c) e.appendChild(c);
+      }
+      return e;
+    }
+
+    /*********************
+     * Map opener (improved Apple Maps)
+     *********************/
+    function openInMaps(input) {
+      if (!input) return;
+      let query = '';
+      if (typeof input === 'object' && input.lat != null && input.lng != null) {
+        query = `${input.lat},${input.lng}`;
+      } else {
+        // Clean up address (collapse whitespace)
+        query = String(input).trim().replace(/\s+/g, ' ');
+      }
+      const isIOS = /iPad|iPhone|iPod/i.test(navigator.userAgent);
+      const encoded = encodeURIComponent(query);
+      const url = isIOS
+        ? `maps://?q=${encoded}`               // native Apple Maps
+        : `https://www.google.com/maps/search/?api=1&query=${encoded}`;
+      const w = window.open(url, '_blank', 'noopener');
+      if (!w) window.location.href = url; // popup blocked fallback
+    }
+
+    /*********************
+     * Mini-map & Pin drop
+     *********************/
+    let miniMap, miniMarker;
+    function initMiniMap() {
+      if (miniMap) return;
+      miniMap = L.map('miniMap', { zoomControl: false, scrollWheelZoom: false, attributionControl: false })
+                 .setView([-45.031, 168.662], 12);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(miniMap);
+    }
+    function showMini(lat, lng) {
+      initMiniMap();
+      miniMap.setView([lat, lng], 16);
+      if (miniMarker) { miniMap.removeLayer(miniMarker); }
+      miniMarker = L.marker([lat, lng]).addTo(miniMap);
+    }
+
+    let dropPinMap, dropPinMarker, dropPinTargetId = null;
+    function openDropPin(id) {
+      dropPinTargetId = id;
+      const dlg = document.getElementById('dropPinDialog');
+      dlg.showModal();
+      setTimeout(()=>{
+        if (!dropPinMap) {
+          dropPinMap = L.map('dropPinMap', { zoomControl: true }).setView([-45.031, 168.662], 12);
+          L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(dropPinMap);
+          dropPinMap.on('click', (e) => {
+            const {lat, lng} = e.latlng;
+            if (dropPinMarker) dropPinMap.removeLayer(dropPinMarker);
+            dropPinMarker = L.marker([lat, lng]).addTo(dropPinMap);
+            dropPinMarker._chosen = {lat, lng};
+          });
+        } else {
+          dropPinMap.invalidateSize();
+        }
+      }, 0);
+    }
+    function closeDropPin(){ document.getElementById('dropPinDialog').close(); }
+    document.getElementById('savePinBtn').addEventListener('click', () => {
+      if (!dropPinMarker || !dropPinMarker._chosen || dropPinTargetId == null) return closeDropPin();
+      const list = getList(state.currentArea, state.currentWeek);
+      const idx = list.findIndex(x => x.id === dropPinTargetId);
+      if (idx >= 0) {
+        const {lat, lng} = dropPinMarker._chosen;
+        list[idx].lat = lat; list[idx].lng = lng;
+        saveState(); render();
+        showMini(lat, lng);
+      }
+      closeDropPin();
+    });
+
+    /*********************
+     * PIN dialog
+     *********************/
+    let pendingDeleteId = null;
+    function askPin(id) {
+      pendingDeleteId = id;
+      document.getElementById('pinInput').value = '';
+      document.getElementById('pinDialog').showModal();
+      setTimeout(()=>document.getElementById('pinInput').focus(), 100);
+    }
+    function closePin() {
+      pendingDeleteId = null;
+      document.getElementById('pinDialog').close();
+    }
+    function confirmPin() {
+      const val = document.getElementById('pinInput').value.trim();
+      if (val === state.pin) {
+        const list = getList(state.currentArea, state.currentWeek);
+        const idx = list.findIndex(x => x.id === pendingDeleteId);
+        if (idx >= 0) {
+          list.splice(idx, 1);
+          saveState(); render();
+        }
+        closePin();
+      } else {
+        alert('Incorrect PIN.');
+      }
+    }
+
+    /*********************
+     * Settings
+     *********************/
+    document.getElementById('settingsBtn').addEventListener('click', () => {
+      document.getElementById('settingsDialog').showModal();
+    });
+    function closeSettings(){ document.getElementById('settingsDialog').close(); }
+    document.getElementById('savePinBtn').addEventListener('click', () => {
+      const v = (document.getElementById('newPin').value || '').trim();
+      if (!/^\d{2,8}$/.test(v)) return alert('PIN must be 2–8 digits.');
+      state.pin = v; saveState(); alert('PIN updated.');
+      document.getElementById('newPin').value='';
+    });
+    document.getElementById('exportBtn').addEventListener('click', () => {
+      const blob = new Blob([JSON.stringify(state, null, 2)], {type:'application/json'});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = 'bin-back-in-data.json'; a.click();
+      URL.revokeObjectURL(url);
+    });
+    document.getElementById('importFile').addEventListener('change', (e) => {
+      const file = e.target.files[0]; if (!file) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        try {
+          const data = JSON.parse(reader.result);
+          state = Object.assign({}, defaultState, data);
+          saveState(); render();
+          alert('Data imported.');
+        } catch(err){ alert('Import failed: invalid JSON'); }
+      };
+      reader.readAsText(file);
+    });
+
+    /*********************
+     * Areas & Weeks UI
+     *********************/
+    const areaSelect = document.getElementById('areaSelect');
+    const weekSelect = document.getElementById('weekSelect');
+    const addAreaBtn = document.getElementById('addAreaBtn');
+    const prevWeekBtn = document.getElementById('prevWeekBtn');
+    const nextWeekBtn = document.getElementById('nextWeekBtn');
+
+    function renderAreas() {
+      areaSelect.innerHTML = '';
+      state.areas.forEach(a => {
+        const opt = el('option',{value:a}, a);
+        if (a === state.currentArea) opt.selected = true;
+        areaSelect.appendChild(opt);
+      });
+    }
+    function renderWeeks() {
+      weekSelect.innerHTML = '';
+      // Show current week +- 4 weeks for quick nav
+      const base = state.currentWeek;
+      const options = [];
+      for (let i=-4;i<=4;i++) options.push(shiftWeek(base, i));
+      const uniq = [...new Set(options)];
+      uniq.forEach(w => {
+        const opt = el('option', {value:w}, weekLabel(w));
+        if (w === state.currentWeek) opt.selected = true;
+        weekSelect.appendChild(opt);
+      });
+    }
+
+    areaSelect.addEventListener('change', () => {
+      state.currentArea = areaSelect.value; saveState(); render();
+    });
+    addAreaBtn.addEventListener('click', () => {
+      const name = prompt('New area name:');
+      if (!name) return;
+      if (!state.areas.includes(name)) state.areas.push(name);
+      state.currentArea = name; saveState(); render();
+    });
+    weekSelect.addEventListener('change', () => {
+      state.currentWeek = weekSelect.value; saveState(); render();
+    });
+    prevWeekBtn.addEventListener('click', () => {
+      state.currentWeek = shiftWeek(state.currentWeek, -1); saveState(); render();
+    });
+    nextWeekBtn.addEventListener('click', () => {
+      state.currentWeek = shiftWeek(state.currentWeek, +1); saveState(); render();
+    });
+
+    /*********************
+     * Addresses list
+     *********************/
+    const listEl = document.getElementById('list');
+    const addrInput = document.getElementById('addrInput');
+    document.getElementById('addAddrBtn').addEventListener('click', () => {
+      const v = (addrInput.value || '').trim();
+      if (!v) return;
+      const item = {
+        id: crypto.randomUUID(),
+        address: v,
+        status: 'pending', // pending | out | in
+        updatedBy: '',
+        updatedAt: ''
+      };
+      const list = getList(state.currentArea, state.currentWeek);
+      list.push(item);
+      addrInput.value = '';
+      saveState(); render();
+    });
+
+    function setStatus(id, status, user='User') {
+      const list = getList(state.currentArea, state.currentWeek);
+      const idx = list.findIndex(x => x.id === id);
+      if (idx < 0) return;
+      list[idx].status = status;
+      list[idx].updatedBy = user;
+      list[idx].updatedAt = nowStamp();
+      saveState(); render();
+    }
+
+    function render() {
+      renderAreas(); renderWeeks();
+      const items = getList(state.currentArea, state.currentWeek);
+      listEl.innerHTML = '';
+      items.forEach(item => {
+        const head = el('div', {class:'item-head'}, item.address);
+        const meta = el('div', {class:'subtle'}, [
+          el('span', {}, item.updatedAt ? `Last: ${item.updatedAt}` : 'No updates yet'),
+          ' ',
+          el('span', {class:'muted'}, item.updatedBy ? `• by ${item.updatedBy}` : '')
+        ]);
+
+        const left = el('div', {}, head, meta, el('div', {class:'spacer'}));
+
+        const statusPill = el('span', {class:'pill ' + (item.status==='in'?'ok': item.status==='out'?'warn':'muted')},
+          item.status==='in'?'In':
+          item.status==='out'?'Out':'Pending'
+        );
+
+        const controls = el('div', {class:'fixed-controls'}, [
+          statusPill,
+          el('button', {class:'btn', onclick:()=>openInMaps(item.lat!=null? {lat:item.lat,lng:item.lng} : item.address)}, 'Open Map'),
+          el('button', {class:'btn', onclick:()=>openDropPin(item.id)}, 'Drop Pin'),
+          el('button', {class:'btn accent', onclick:()=>setStatus(item.id,'out','user')}, 'Out'),
+          el('button', {class:'btn accent', onclick:()=>setStatus(item.id,'in','user')}, 'In'),
+          el('button', {class:'btn danger', onclick:()=>askPin(item.id)}, '− Delete')
+        ]);
+
+        const right = el('div', {class:'item-controls'}, controls);
+
+        const row = el('div', {class:'item'} , left, right);
+        row.addEventListener('click', () => {
+          if (item.lat!=null && item.lng!=null) showMini(item.lat, item.lng);
+        });
+        listEl.appendChild(row);
+      });
+
+      // If there is at least one item with coords, show first on mini map
+      const withPin = items.find(x => x.lat!=null && x.lng!=null);
+      if (withPin) { showMini(withPin.lat, withPin.lng); }
+      else { initMiniMap(); } // ensure map is initialized
+    }
+
+    // expose for inline handlers
+    window.openDropPin = openDropPin;
+    window.askPin = askPin;
+    window.closePin = closePin;
+    window.confirmPin = confirmPin;
+    window.closeSettings = closeSettings;
+
+    // Kick off
+    render();
+  </script>
+</body>
+</html>
