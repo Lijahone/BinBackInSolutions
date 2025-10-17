@@ -1,0 +1,546 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Bin Back In Solutions — Live Sync (Areas)</title>
+<style>
+  :root{ --bg:#f7f7fb; --card:#ffffff; --ink:#0f172a; --muted:#6b7280; --border:#e5e7eb; --brand:#2563eb; }
+  @media (prefers-color-scheme: dark){
+    :root{ --bg:#0b1020; --card:#0f1529; --ink:#e5e7eb; --muted:#9aa1b2; --border:#2a3352; --brand:#3b82f6; }
+  }
+  html,body{margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif}
+  header{position:sticky;top:0;background:var(--card);border-bottom:1px solid var(--border);
+    padding:10px 12px;display:flex;align-items:center;gap:8px;z-index:10;flex-wrap:wrap}
+  .brand{font-weight:800;font-size:18px}
+  .spacer{flex:1}
+  .btn{padding:10px 14px;border:1px solid var(--border);border-radius:12px;background:var(--card);cursor:pointer;font-weight:600}
+  .seg{display:flex;gap:6px;background:var(--bg);padding:4px;border-radius:12px;border:1px solid var(--border)}
+  .seg button{padding:8px 12px;border:0;border-radius:10px;background:transparent;font-weight:600;color:var(--muted)}
+  .seg button.active{background:var(--card);color:var(--ink);border:1px solid var(--border)}
+  main{max-width:920px;margin:0 auto;padding:12px}
+  .toolbar{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0}
+  .search{flex:1;display:flex;align-items:center;gap:8px;border:1px solid var(--border);
+    background:var(--card);padding:8px 12px;border-radius:12px;min-width:180px}
+  .search input{border:0;outline:0;background:transparent;color:var(--ink);width:100%;font-size:16px}
+  .addr{display:grid;gap:10px;border:1px solid var(--border);border-radius:16px;padding:14px 12px;margin-bottom:10px;background:var(--card);position:relative}
+  .topline{display:flex;align-items:center;gap:10px;justify-content:space-between;flex-wrap:wrap}
+  .name{font-weight:800}
+  .meta{color:var(--muted);font-size:12px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;justify-content:flex-end}
+  .badge{border:1px solid var(--border);border-radius:999px;padding:6px 10px;display:inline-flex;align-items:center;gap:6px}
+  .actions{display:flex;gap:12px 14px;align-items:flex-start;flex-wrap:wrap}
+  .actions > *{flex:0 0 auto;}
+  .toggle{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--border);border-radius:999px;padding:8px 12px}
+  .icon-btn{border:1px solid var(--border);background:var(--card);font-size:18px;line-height:1;min-width:30px;min-height:28px;
+    padding:2px 8px;border-radius:10px;color:var(--muted);cursor:pointer;touch-action:manipulation}
+  .icon-btn:active{transform:scale(0.98)}
+  .maplink{border:1px solid var(--border);border-radius:999px;padding:8px 12px;text-decoration:none}
+  .note{width:100%;font-size:16px;line-height:1.35;padding:6px 10px;border:1px solid var(--border);border-radius:10px;resize:none;overflow:hidden;height:30px;min-height:30px;max-height:78px;background:transparent}
+  .note::placeholder{color:var(--muted);opacity:.75}
+  .toggleWrap{display:flex;flex-direction:column;align-items:flex-start;gap:6px;min-height:72px}
+  .statusline{height:22px;line-height:22px;font-size:13px;color:var(--muted)}
+  .statusline .label{font-weight:700;color:var(--ink)}
+  .statusline .who{font-weight:700}
+  .statusline .time{opacity:.9}
+  .banner{display:flex;gap:8px;align-items:center;border:1px dashed var(--border);background:#fff5; padding:8px 12px;border-radius:10px;font-size:12px}
+  .modal-backdrop{position:fixed;inset:0;background:#0008;display:none;align-items:center;justify-content:center;z-index:50}
+  .modal{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:16px;max-width:420px;width:92%}
+  .modal h3{margin:0 0 8px 0}
+  .field{display:flex;gap:8px;margin:10px 0}
+  .field input{flex:1;padding:10px;border:1px solid var(--border);border-radius:10px;font-size:16px;background:transparent;color:var(--ink)}
+  select.areaSel{border:1px solid var(--border);background:var(--card);border-radius:10px;padding:8px 10px}
+
+  /* Photo panel */
+  .bbi-photo-wrap{display:flex;align-items:flex-start;gap:10px;margin-top:8px}
+  .bbi-thumb{width:128px;height:128px;background:#fafafa;border:1px solid #e5e7eb;border-radius:12px;display:flex;align-items:center;justify-content:center;overflow:hidden}
+  .bbi-thumb img{max-width:100%;max-height:100%;object-fit:cover;display:block}
+  .bbi-photo-tools{display:flex;flex-direction:column;gap:6px}
+  .bbi-photo-cap{font-size:12px;color:#6b7280}
+
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">Bin Back In Solutions</div>
+  <select id="areaSel" class="areaSel" title="Area">
+    <option value="All">All areas</option>
+  </select>
+  <button id="addArea" class="btn" type="button">+ Area</button>
+  <div class="spacer"></div>
+  <div class="seg" id="daySeg">
+    <button data-day="All" class="active">All</button>
+    <button data-day="Tuesday">Tue</button>
+    <button data-day="Wednesday">Wed</button>
+    <button data-day="Thursday">Thu</button>
+    <button data-day="Friday">Fri</button>
+  </div>
+  <button id="addBtn" class="btn" type="button">+ Address</button>
+  <button id="userBtn" class="btn" type="button">User</button>
+</header>
+
+<main>
+  <div class="toolbar">
+    <div class="search">
+      <span>🔎</span><input id="search" placeholder="Search address…" />
+    </div>
+    <button id="refresh" class="btn" type="button">Refresh</button>
+    <button id="optimiseOut" class="btn" type="button">Optimise Out</button>
+    <button id="optimiseBack" class="btn" type="button">Optimise Back</button>
+  </div>
+
+  <div id="status" class="banner">Booting…</div>
+
+  <h2 style="margin:10px 0 12px 0;"><span id="areaTitle">All areas</span> — Addresses</h2>
+  <div id="list"></div>
+</main>
+
+<!-- Display Name Modal -->
+<div class="modal-backdrop" id="nameModal" aria-modal="true" role="dialog">
+  <div class="modal">
+    <h3>Who’s using the app?</h3>
+    <p style="margin:0 0 8px;color:var(--muted)">Enter the name that should appear on updates (e.g., “Lija”, “Sam”).</p>
+    <div class="field">
+      <input id="nameInput" placeholder="Your name" maxlength="30" />
+      <button id="saveName" class="btn" type="button">Save</button>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-app.js";
+import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-auth.js";
+import { getFirestore, collection, doc, setDoc, getDoc, updateDoc, deleteDoc, onSnapshot, query, orderBy } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-firestore.js";
+import * as ST from "https://www.gstatic.com/firebasejs/10.13.1/firebase-storage.js";
+
+// Firebase config (same as your working file)
+const firebaseConfig = {
+  apiKey: "AIzaSyAaDT6hFD38_P1AhQMF_vT18tXG9_pp8Sw",
+  authDomain: "binbackinsolutions.firebaseapp.com",
+  projectId: "binbackinsolutions",
+  storageBucket: "binbackinsolutions.firebasestorage.app",
+  messagingSenderId: "740345071529",
+  appId: "1:740345071529:web:e960f05ba0c982194126b8",
+  measurementId: "G-6XK5H9LWWK"
+};
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+window.db = db; // expose for timestamp helper
+window.CURRENT_USER = (localStorage.getItem('bbi_user_name')||'');
+
+// ---------- helpers ----------
+const $=s=>document.querySelector(s);
+const statusEl=$("#status"); function setBanner(t){ statusEl.textContent=t; }
+const LS_USER='bbi_user_name';
+const LS_AREAS='bbi_areas_v1';
+function currentName(){ return localStorage.getItem(LS_USER) || ""; }
+function setCurrentName(name){ localStorage.setItem(LS_USER, name); }
+const slug=s=>s.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'');
+function fmtShort(ts){ if(!ts) return ''; const d=new Date(ts); return d.toLocaleTimeString([], {hour:'numeric',minute:'2-digit'})+' · '+d.toLocaleDateString([], {weekday:'short'})+' '+d.toLocaleDateString([], {day:'2-digit',month:'short'}); }
+
+let filterDay='All', filterText='', filterArea='All';
+let ADDRS=[];
+let AREAS = JSON.parse(localStorage.getItem(LS_AREAS) || '["Queenstown","Tikipunga Retirement"]');
+
+// Render throttle + editing guard
+let SNAP_T=null;
+let EDITING_NOTE_ID=null;
+let EDITING_IDLE_T=null;
+function scheduleRender(){ if(EDITING_NOTE_ID) return; if(SNAP_T) return; SNAP_T=setTimeout(()=>{ SNAP_T=null; render(); },150); }
+
+// Day switcher + search + refresh
+document.getElementById('daySeg').addEventListener('click', (e)=>{
+  const b=e.target.closest('button'); if(!b) return;
+  document.querySelectorAll('#daySeg button').forEach(x=>x.classList.remove('active'));
+  b.classList.add('active'); filterDay=b.getAttribute('data-day'); render();
+});
+document.getElementById('search').addEventListener('input', e=>{ filterText=e.target.value.toLowerCase(); render(); });
+document.getElementById('refresh').addEventListener('click', ()=> location.reload());
+
+// Areas UI
+const areaSel = $("#areaSel");
+const areaTitle = $("#areaTitle");
+function renderAreas() {
+  areaSel.innerHTML = '<option value="All">All areas</option>';
+  for (const a of AREAS) {
+    const opt = document.createElement('option');
+    opt.value = a; opt.textContent = a;
+    if (a === filterArea) opt.selected = true;
+    areaSel.appendChild(opt);
+  }
+  areaTitle.textContent = filterArea === 'All' ? 'All areas' : filterArea;
+}
+areaSel.addEventListener('change', ()=>{ filterArea = areaSel.value; renderAreas(); render(); });
+document.getElementById('addArea').addEventListener('click', ()=>{
+  const name = prompt('New area name:'); if(!name) return;
+  if(!AREAS.includes(name)) AREAS.push(name);
+  localStorage.setItem(LS_AREAS, JSON.stringify(AREAS));
+  filterArea = name;
+  renderAreas(); render();
+});
+
+// UI helpers
+function statusLine(label, who, when){ return (who && when) ? `<span class="label">${label}</span> — <span class="who">${who}</span> — <span class="time">${fmtShort(when)}</span>` : '&nbsp;'; }
+function applyFilters(arr){
+  return arr.filter(it=> {
+    const dayOK = (filterDay==='All'||it.pickup===filterDay);
+    const txtOK = (!filterText||it.address?.toLowerCase().includes(filterText));
+    const area = it.area || 'Queenstown';
+    const areaOK = (filterArea==='All' || area===filterArea);
+    return dayOK && txtOK && areaOK;
+  });
+}
+
+// Apple/Google Maps opener (native on iOS)
+function openInMaps(query){
+  if(!query) return;
+  query = String(query).trim().replace(/\s+/g,' ');
+  const isIOS = /iPad|iPhone|iPod/i.test(navigator.userAgent);
+  const encoded = encodeURIComponent(query);
+  const url = isIOS ? `maps://?q=${encoded}` :
+    `https://www.google.com/maps/search/?api=1&query=${encoded}`;
+  const w = window.open(url,'_blank','noopener'); if(!w) window.location.href = url;
+}
+
+
+// ---- Photo: thumbnail + Add/Replace + lightbox (minimal) ----
+let PHOTO_CACHE = new Map();
+function openLightbox(src){
+  const b=document.createElement('div');
+  Object.assign(b.style,{position:'fixed',inset:'0',background:'rgba(0,0,0,.8)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:9999});
+  b.addEventListener('click',()=>document.body.removeChild(b),{passive:true});
+  const img=new Image(); img.src=src; img.style.maxWidth='92%'; img.style.maxHeight='92%'; img.style.borderRadius='12px'; img.style.boxShadow='0 12px 30px rgba(0,0,0,.4)';
+  b.appendChild(img); document.body.appendChild(b);
+}
+function activatePhoto(wrap){
+  if(wrap.__on) return; wrap.__on=true;
+  const id = wrap.getAttribute('data-id');
+  const img = wrap.querySelector('.bbi-thumb img');
+  const cap = wrap.querySelector('.bbi-photo-cap');
+  const inp = wrap.querySelector('input[type=file]');
+  const btn = wrap.querySelector('.file-btn');
+  const LS_IMG = 'bbi_thumb_'+id;
+  const LS_CAP = 'bbi_cap_'+id;
+
+  function setImg(src){ if(!src) return; img.src=src; PHOTO_CACHE.set(id,src); try{ localStorage.setItem(LS_IMG,src);}catch(_){ } }
+  function setCap(text){ cap.textContent=text||''; try{ localStorage.setItem(LS_CAP,text||'');}catch(_){ } }
+
+  // restore thumb + caption
+  try{ const s=localStorage.getItem(LS_IMG); if(s) setImg(s);}catch(_){}
+  try{ const c=localStorage.getItem(LS_CAP); if(c) setCap(c);}catch(_){}
+
+  // fetch latest thumb from cloud (if exists)
+  (async()=>{
+    try{
+      const storage = ST.getStorage(app);
+      const url = await ST.getDownloadURL(ST.ref(storage, `addresses/${id}/latest.jpg`));
+      setImg(url + '#' + Date.now());
+    }catch(_){}
+    // fetch caption from Firestore
+    try{
+      const snap = await getDoc(doc(db,'addresses', id));
+      const data = snap && snap.data && snap.data();
+      if(data && data.photoAt){
+        const d=new Date(data.photoAt);
+        const pretty = d.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) + ' · ' +
+                       d.toLocaleDateString([], {weekday:'short'}) + ' ' +
+                       d.toLocaleDateString([], {day:'2-digit', month:'short'});
+        setCap(`Last photo by ${data.photoBy||'User'} at ${pretty}`);
+      }
+    }catch(_){}
+  })();
+
+  // lightbox
+  wrap.querySelector('.bbi-thumb').addEventListener('click', ()=>{ if(img.src) openLightbox(img.src); }, {passive:true});
+
+  // button: open picker
+  btn.addEventListener('click', ()=> inp.click());
+
+  // immediate timestamp when pressed handled elsewhere if present
+
+  // upload flow
+  inp.addEventListener('change', async ()=>{
+    const f = inp.files && inp.files[0]; if(!f) return;
+    // instant preview
+    try{
+      const reader = new FileReader();
+      reader.onload = ()=>{ setImg(reader.result); setCap('Uploading…'); };
+      reader.readAsDataURL(f);
+    }catch(_){}
+    try{
+      const storage = ST.getStorage(app);
+      await ST.uploadBytes(ST.ref(storage, `addresses/${id}/latest.jpg`), f, {contentType:f.type||'image/jpeg', cacheControl:'no-cache'});
+      const url = await ST.getDownloadURL(ST.ref(storage, `addresses/${id}/latest.jpg`));
+      const now = Date.now();
+      setImg(url + '#' + now);
+      const who = (window.CURRENT_USER || 'User');
+      const d=new Date(now);
+      const pretty = d.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) + ' · ' +
+                     d.toLocaleDateString([], {weekday:'short'}) + ' ' +
+                     d.toLocaleDateString([], {day:'2-digit', month:'short'});
+      setCap(`Last photo by ${who} at ${pretty}`);
+      await updateDoc(doc(db,'addresses', id), { photoAt: now, photoBy: who, updatedAt: now });
+    }catch(e){
+      setCap('Upload failed — tap again to retry.');
+    }finally{ inp.value=''; }
+  });
+}
+
+function render(){
+  renderAreas();
+  const listEl=$("#list"); listEl.innerHTML='';
+  const sorted = ADDRS.slice().sort((a,b)=>{
+    const ra = (typeof a.rank === 'number') ? a.rank : 1e9;
+    const rb = (typeof b.rank === 'number') ? b.rank : 1e9;
+    if(ra !== rb) return ra - rb;
+    return (a.address||'').localeCompare(b.address||'');
+  });
+  for(const it of applyFilters(sorted)){
+    const area = it.area || 'Queenstown';
+    const row=document.createElement('div'); row.className='addr'; row.dataset.id=it.id;
+    const outL = statusLine('Out', it.outBy, it.outAt);
+    const backL = statusLine('Back', it.backBy, it.backAt);
+    const q = `${it.address||''}, ${area}`;
+    row.innerHTML=`
+      <div class="topline">
+        <div class="name">${it.address||''}</div>
+        <div class="meta">
+          <span class="badge">📍 ${area}</span>
+          <span class="badge">🗓 ${it.pickup||''}</span>
+          <button class="icon-btn del" type="button" data-act="delete" data-id="${it.id}" aria-label="Delete address" title="Delete">−</button>
+        </div>
+      </div>
+      <div class="actions">
+        <div class="toggleWrap">
+          <label class="toggle"><input type="checkbox" data-id="${it.id}" data-act="out" ${it.out?'checked':''}> Out</label>
+          <div class="statusline" id="stat-out-${it.id}">${outL}</div>
+        </div>
+        <div class="toggleWrap">
+          <label class="toggle"><input type="checkbox" data-id="${it.id}" data-act="back" ${it.back?'checked':''}> Back</label>
+          <div class="statusline" id="stat-back-${it.id}">${backL}</div>
+        </div>
+        <a class="maplink" href="javascript:void(0)" data-q="${q}" data-act="map">Address map</a>
+      </div>
+      <textarea class="note" data-id="${it.id}" maxlength="120" placeholder="Notes"
+        autocapitalize="off" autocomplete="off" autocorrect="off" spellcheck="false" inputmode="text"></textarea>
+      <div class="bbi-photo-wrap" data-id="${it.id}">
+        <div class="bbi-thumb"><img alt="No photo"></div>
+        <div class="bbi-photo-tools">
+          <button class="btn file-btn" type="button">Add/Replace photo</button>
+          <input type="file" accept="image/*" capture="environment" style="display:none">
+          <div class="bbi-photo-cap">No photo yet</div>
+        </div>
+      </div>
+    
+    `;
+    const ta = row.querySelector('textarea.note');
+    ta.value = it.note ? String(it.note) : "";
+    listEl.appendChild(row);
+  }
+  document.querySelectorAll('textarea.note').forEach(el=>{ el.style.height='auto'; const h=Math.min(el.scrollHeight,78); el.style.height=Math.max(30,h)+'px'; });
+
+  // Activate photo widgets
+  document.querySelectorAll('.bbi-photo-wrap').forEach(w => activatePhoto(w));
+
+}
+
+// ---------- start + live sync ----------
+async function start(){
+  setBanner("Signing in…");
+  const cred = await signInAnonymously(auth);
+  const uid = cred.user.uid;
+
+  // Load saved profile and show modal if needed
+  const pref = doc(db,'profiles',uid);
+  try {
+    const pSnap = await getDoc(pref);
+    const serverName = pSnap.exists() ? (pSnap.data().displayName||"") : "";
+    if(serverName && !currentName()){ setCurrentName(serverName); }
+    window.CURRENT_USER = currentName();
+  } catch(e) {}
+  if(!(currentName().trim().length >= 2)){ openNameModal(); }
+
+  setBanner("Connecting…");
+  const q = query(collection(db,"addresses"), orderBy("address"));
+  onSnapshot(q, (snap)=>{
+    ADDRS = snap.docs.map(d=>({ id:d.id, ...d.data() }));
+    scheduleRender();
+    setBanner("Live — synced");
+  });
+}
+start();
+
+// ---------- name modal ----------
+const nameModal = $("#nameModal");
+const nameInput = $("#nameInput");
+function openNameModal(){ nameInput.value = currentName(); nameModal.style.display='flex'; setTimeout(()=> nameInput.focus(), 50); }
+function closeNameModal(){ nameModal.style.display='none'; }
+async function saveName(){
+  const v = (nameInput.value||'').trim();
+  if(v.length < 2){ alert('Please enter at least 2 characters.'); return; }
+  setCurrentName(v);
+  window.CURRENT_USER = v;
+  try{
+    const uid = (auth.currentUser && auth.currentUser.uid) || 'anon';
+    await setDoc(doc(db,'profiles',uid), { displayName:v, updatedAt: Date.now() }, { merge:true });
+  }catch(e){}
+  closeNameModal();
+}
+document.getElementById('userBtn').addEventListener('click', (e)=>{ e.preventDefault(); openNameModal(); }, {passive:false});
+document.getElementById('saveName').addEventListener('click', saveName);
+nameInput.addEventListener('keydown', (e)=>{ if(e.key==='Enter'){ e.preventDefault(); saveName(); } });
+nameModal.addEventListener('click', (e)=>{ if(e.target===nameModal){ closeNameModal(); } }, {passive:true});
+
+// ---------- add address ----------
+document.getElementById('addBtn').addEventListener('click', async ()=>{
+  const addr=prompt('New address (full street):'); if(!addr||!addr.trim()) return;
+  const pickup=(prompt('Pickup day (Tue/Wed/Thu/Fri):','Tuesday')||'Tuesday').trim();
+  // area defaults to current filter area (if not All); otherwise ask
+  let areaSelVal = filterArea !== 'All' ? filterArea : null;
+  if(!areaSelVal){
+    areaSelVal = prompt('Area name (choose or type):', AREAS[0] || 'Queenstown') || 'Queenstown';
+    if(!AREAS.includes(areaSelVal)){ AREAS.push(areaSelVal); localStorage.setItem(LS_AREAS, JSON.stringify(AREAS)); renderAreas(); }
+  }
+  const id=slug(addr) + '-' + slug(areaSelVal);
+  const obj={address:addr.trim(), area: areaSelVal.trim(),
+    pickup,
+    gas:'No',
+    out:false,outBy:'',outAt:0,
+    back:false,backBy:'',backAt:0,
+    note:'', updatedAt:Date.now(), rank: 999999
+  };
+  try{ await setDoc(doc(db,"addresses",id), obj); } catch(err){ alert('Add failed: '+(err&&err.message?err.message:err)); }
+});
+
+// ---------- per-item toggles ----------
+document.getElementById('list').addEventListener('change', async (e)=>{
+  const cb=e.target.closest('input[type=checkbox]'); if(!cb) return;
+  const id=cb.getAttribute('data-id'), act=cb.getAttribute('data-act');
+  const t=Date.now(), who=currentName() || ("User-" + (auth.currentUser?.uid?.slice(-4)||'0000'));
+  const patch={ updatedAt:t };
+  if(act==='out'){ patch.out=cb.checked; patch.outBy=cb.checked?who:""; patch.outAt=cb.checked?t:0; }
+  if(act==='back'){ patch.back=cb.checked; patch.backBy=cb.checked?who:""; patch.backAt=cb.checked?t:0; }
+  try{ await updateDoc(doc(db,'addresses',id), patch); }catch(err){ alert('Update failed'); }
+});
+
+// ---------- Notes: single, safe handler ----------
+const SAVE_T=new Map();
+document.getElementById('list').addEventListener('input', (e)=>{
+  const ta=e.target.closest('textarea.note'); if(!ta) return;
+  const id=ta.getAttribute('data-id'); const v=ta.value.slice(0,120);
+  EDITING_NOTE_ID=id;
+  ta.style.height='auto'; ta.style.height=Math.max(30, Math.min(ta.scrollHeight,78))+'px';
+  if(SAVE_T.has(id)) clearTimeout(SAVE_T.get(id));
+  SAVE_T.set(id, setTimeout(async ()=>{
+    try{ await updateDoc(doc(db,"addresses",id), { note:v, updatedAt:Date.now() }); }catch(e){}
+    SAVE_T.delete(id);
+  }, 800));
+  clearTimeout(EDITING_IDLE_T);
+  EDITING_IDLE_T=setTimeout(()=>{ EDITING_NOTE_ID=null; scheduleRender(); }, 900);
+}, true);
+document.getElementById('list').addEventListener('blur', (e)=>{
+  const ta=e.target.closest('textarea.note'); if(!ta) return;
+  const id=ta.getAttribute('data-id'); const v=ta.value.slice(0,120);
+  (async ()=>{ try{ await updateDoc(doc(db,"addresses",id), { note:v, updatedAt:Date.now() }); }catch(e){} })();
+  EDITING_NOTE_ID=null;
+  scheduleRender();
+}, true);
+
+// Map open click
+document.getElementById('list').addEventListener('click', (e)=>{
+  const a = e.target.closest('[data-act="map"]'); if(!a) return;
+  e.preventDefault();
+  openInMaps(a.getAttribute('data-q'));
+}, {passive:false});
+
+// ---------- Delete with passcode 5952 ----------
+let DELETE_LOCK=false;
+async function handleDelete(id){
+  if(DELETE_LOCK) return;
+  DELETE_LOCK=true;
+  try{
+    if(!confirm('Remove this address?')) return;
+    const code = prompt('Enter passcode to confirm delete:');
+    if(code!=='5952'){ alert('Incorrect passcode'); return; }
+    await deleteDoc(doc(db,'addresses',id));
+  }catch(e){ alert('Delete failed'); }
+  finally{
+    setTimeout(()=>{ DELETE_LOCK=false; }, 300);
+  }
+}
+document.getElementById('list').addEventListener('click', (e)=>{
+  const del=e.target.closest('[data-act="delete"]'); if(!del) return;
+  e.preventDefault();
+  handleDelete(del.getAttribute('data-id'));
+}, {passive:false});
+
+// ---------- Route Optimisation (uses selected area) ----------
+function toMapsAddresses(arr){ return arr.map(n => `${n.address}, ${(n.area||'Queenstown')}`); }
+function buildOptimisedUrl(addresses, originStr){
+  const dest = encodeURIComponent(addresses[0]);
+  const rest = addresses.slice(1,24).map(p=>encodeURIComponent(p)).join('|');
+  const wps = rest ? `optimize:true|${rest}` : 'optimize:true';
+  return `https://www.google.com/maps/dir/?api=1${originStr?`&origin=${encodeURIComponent(originStr)}`:''}&destination=${dest}&waypoints=${wps}`;
+}
+function plan(kind){
+  const visible = applyFilters(ADDRS);
+  const need = visible.filter(a => kind==='out' ? !a.out : !a.back );
+  const count = need.length;
+  if(!count){ alert('No stops to visit for this view.'); return; }
+  const parts = toMapsAddresses(need);
+  setBanner(`Building route for ${count} stop${count>1?'s':''}…`);
+  let tab=null; try{ tab = window.open('', '_blank'); }catch{ tab = null; }
+  const navTo = (url)=>{
+    if(tab && !tab.closed){ try{ tab.location = url; }catch{ window.location = url; } }
+    else { window.location = url; }
+    setBanner(`Opened route with ${count} stop${count>1?'s':''}.`);
+  };
+  const fallback = ()=> navTo(buildOptimisedUrl(parts, ''));
+  if(navigator.geolocation){
+    let done=false;
+    navigator.geolocation.getCurrentPosition(
+      pos=>{ if(done) return; done=true; navTo(buildOptimisedUrl(parts, `${pos.coords.latitude},${pos.coords.longitude}`)); },
+      _err=>{ if(done) return; done=true; fallback(); },
+      { enableHighAccuracy:false, timeout:4000, maximumAge:60000 }
+    );
+    setTimeout(()=>{ if(!done){ done=true; fallback(); } }, 5000);
+  }else{
+    fallback();
+  }
+}
+document.getElementById('optimiseOut').addEventListener('click', ()=> plan('out'), {passive:true});
+document.getElementById('optimiseBack').addEventListener('click', ()=> plan('back'), {passive:true});
+</script>
+
+<!-- === Add instant timestamp when Add/Replace Photo is pressed (non-invasive) === -->
+<script>
+(function(){
+  if(window.__bbi_photo_press_ts) return; window.__bbi_photo_press_ts = true;
+  function fmtShort(ts){
+    try{
+      const d=new Date(ts);
+      const dd=('0'+d.getDate()).slice(-2), mm=('0'+(d.getMonth()+1)).slice(-2);
+      const yyyy=d.getFullYear(), hh=('0'+d.getHours()).slice(-2), mi=('0'+d.getMinutes()).slice(-2);
+      return `${dd}/${mm}/${yyyy} ${hh}:${mi}`;
+    }catch(_){ return ''; }
+  }
+  document.addEventListener('click', async function(e){
+    const btn = e.target && e.target.closest && e.target.closest('.bbi-photo-wrap .file-btn');
+    if(!btn) return;
+    const wrap = btn.closest('.bbi-photo-wrap'); if(!wrap) return;
+    const id   = wrap.getAttribute('data-id');
+    const cap  = wrap.querySelector('.bbi-photo-cap');
+    const who  = (window.CURRENT_USER || 'User');
+    const now  = Date.now();
+    if(cap){ cap.textContent = `Last photo by ${who} at ${fmtShort(now)}`; }
+    try{
+      const { setDoc, doc } = await import('https://www.gstatic.com/firebasejs/10.13.1/firebase-firestore.js');
+      await setDoc(doc(window.db, 'addresses', id), { photoBy: who, photoAt: now }, { merge: true });
+    }catch(_){}
+  }, { passive: true });
+})();
+</script>
+
+</body>
+</html>
