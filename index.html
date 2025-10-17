@@ -1,0 +1,483 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Bin Back In Solutions</title>
+<style>
+  :root{
+    --bg:#f7f7fb; --card:#ffffff; --ink:#0f172a; --muted:#6b7280; --border:#e5e7eb; --brand:#2563eb;
+    --logo:url('Bin_Back_In_Logo.png'); /* If your filename differs, change this */
+  }
+  @media (prefers-color-scheme: dark){
+    :root{ --bg:#0b1020; --card:#0f1529; --ink:#e5e7eb; --muted:#9aa1b2; --border:#2a3352; --brand:#3b82f6; }
+  }
+  html,body{margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;min-height:100%}
+  /* Watermark background */
+  body::before{
+    content:""; position:fixed; inset:0; z-index:-1; pointer-events:none;
+    background-image: var(--logo);
+    background-repeat:no-repeat; background-position:center; background-size:min(90vmin, 680px);
+    opacity:.6; filter:grayscale(0.1);
+  }
+  header{position:sticky;top:0;background:var(--card);border-bottom:1px solid var(--border);
+    padding:10px 12px;display:flex;align-items:center;gap:8px;z-index:5;flex-wrap:wrap}
+  .brand{font-weight:800;font-size:18px}
+  .spacer{flex:1}
+  .btn{padding:10px 14px;border:1px solid var(--border);border-radius:12px;background:var(--card);cursor:pointer;font-weight:600}
+  .btn.primary{background:var(--brand);color:#fff;border-color:transparent}
+  .seg{display:flex;gap:6px;background:var(--bg);padding:4px;border-radius:12px;border:1px solid var(--border)}
+  .seg button{padding:8px 12px;border:0;border-radius:10px;background:transparent;font-weight:600;color:var(--muted)}
+  .seg button.active{background:var(--card);color:var(--ink);border:1px solid var(--border)}
+  main{max-width:980px;margin:0 auto;padding:12px}
+  .toolbar{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0}
+  .search{flex:1;display:flex;align-items:center;gap:8px;border:1px solid var(--border);
+    background:var(--card);padding:8px 12px;border-radius:12px;min-width:180px}
+  .search input{border:0;outline:0;background:transparent;color:var(--ink);width:100%;font-size:16px}
+  .addr{display:grid;gap:10px;border:1px solid var(--border);border-radius:16px;padding:14px 12px;margin-bottom:10px;background:var(--card);position:relative}
+  .topline{display:flex;align-items:center;gap:10px;justify-content:space-between;flex-wrap:wrap}
+  .name{font-weight:800}
+  .meta{color:var(--muted);font-size:12px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;justify-content:flex-end}
+  .badge{border:1px solid var(--border);border-radius:999px;padding:6px 10px;display:inline-flex;align-items:center;gap:6px}
+  .actions{display:flex;gap:12px 14px;align-items:flex-start;flex-wrap:wrap}
+  .toggle{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--border);border-radius:999px;padding:8px 12px}
+  .icon-btn{border:1px solid var(--border);background:var(--card);font-size:18px;line-height:1;min-width:30px;min-height:28px;
+    padding:2px 8px;border-radius:10px;color:var(--muted);cursor:pointer;touch-action:manipulation}
+  .icon-btn:active{transform:scale(0.98)}
+  .maplink, .copylink{border:1px solid var(--border);border-radius:999px;padding:8px 12px;text-decoration:none}
+  .note{width:100%;font-size:16px;line-height:1.35;padding:6px 10px;border:1px solid var(--border);border-radius:10px;resize:none;overflow:hidden;height:30px;min-height:30px;max-height:78px;background:transparent}
+  .note::placeholder{color:var(--muted);opacity:.75}
+  .toggleWrap{display:flex;flex-direction:column;align-items:flex-start;gap:6px;min-height:72px}
+  .statusline{height:22px;line-height:22px;font-size:13px;color:var(--muted)}
+  .statusline .label{font-weight:700;color:var(--ink)}
+  .statusline .who{font-weight:700}
+  .statusline .time{opacity:.9}
+  .banner{display:flex;gap:8px;align-items:center;border:1px dashed var(--border);background:#fff7; padding:8px 12px;border-radius:10px;font-size:12px}
+  select.areaSel{border:1px solid var(--border);background:var(--card);border-radius:10px;padding:8px 10px}
+
+  /* Splash & Gate */
+  .center{display:flex;align-items:center;justify-content:center}
+  #splash{position:fixed;inset:0;background:var(--bg);z-index:1000;transition:opacity .6s ease}
+  .splash-card{max-width:720px;margin:0 auto;text-align:center;padding:24px}
+  .logo-big{width:min(72vw,420px);height:min(72vw,420px);margin:20px auto;background-image:var(--logo);
+    background-size:contain;background-repeat:no-repeat;background-position:center;opacity:.95}
+  .title-big{font-weight:900;font-size:clamp(28px,6vw,48px);letter-spacing:.5px;margin:8px 0 0}
+  .sub{color:var(--muted);margin-top:6px}
+  .splash-cta{margin-top:14px}
+  #gate{display:none;position:fixed;inset:0;z-index:900;background:linear-gradient(to bottom, #fff8, transparent 120px);padding:16px}
+  .gate-card{max-width:680px;margin:40px auto;background:var(--card);border:1px solid var(--border);border-radius:16px;padding:16px}
+  .roles{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:8px}
+  .muted{color:var(--muted)}
+  .field{display:flex;gap:8px;margin:8px 0;align-items:center}
+  .field input{flex:1;padding:10px;border:1px solid var(--border);border-radius:10px;background:transparent;color:var(--ink)}
+  .list{display:grid;gap:8px;margin-top:8px}
+  .item{display:flex;gap:8px;align-items:center;justify-content:space-between;border:1px solid var(--border);border-radius:12px;padding:10px;background:var(--card)}
+
+  /* Hide the app until access granted */
+  body.gated main, body.gated header .app-only{display:none !important}
+  body.gated #gate{display:block}
+  /* Read-only mode */
+  body.readonly .app-only{display:none !important}
+  body.readonly input[type="checkbox"]{pointer-events:none; opacity:.6}
+</style>
+</head>
+<body class="gated">
+<header>
+  <div class="brand">Bin Back In Solutions</div>
+  <select id="areaSel" class="areaSel app-only" title="Area">
+    <option value="All">All areas</option>
+  </select>
+  <button id="addArea" class="btn app-only" type="button">+ Area</button>
+  <div class="spacer"></div>
+  <div class="seg app-only" id="daySeg">
+    <button data-day="All" class="active">All</button>
+    <button data-day="Tuesday">Tue</button>
+    <button data-day="Wednesday">Wed</button>
+    <button data-day="Thursday">Thu</button>
+    <button data-day="Friday">Fri</button>
+  </div>
+  <button id="addBtn" class="btn app-only" type="button">+ Address</button>
+  <button id="userBtn" class="btn app-only" type="button">User</button>
+</header>
+
+<!-- Splash -->
+<div id="splash" class="center">
+  <div class="splash-card">
+    <div class="logo-big" aria-hidden="true"></div>
+    <div class="title-big">Bin Back In Solutions</div>
+    <div class="sub">We value your time</div>
+    <div class="splash-cta"><button id="continueBtn" class="btn">Continue</button></div>
+  </div>
+</div>
+
+<!-- Gate -->
+<div id="gate">
+  <div class="gate-card">
+    <h2 style="margin:0 0 6px">Choose access</h2>
+    <div class="muted">Select a role below. Codes keep people out of areas they shouldn’t be in.</div>
+
+    <div class="roles">
+      <div>
+        <h3 style="margin:10px 0 6px">BinBackIn</h3>
+        <div class="field"><input id="binPass" placeholder="Enter code" inputmode="numeric" maxlength="12" /></div>
+        <button id="binLogin" class="btn primary" type="button">Login as BinBackIn</button>
+        <div id="binPanel" style="display:none;margin-top:12px">
+          <h4 style="margin:12px 0 6px">Open area</h4>
+          <div class="field">
+            <select id="binOpenArea" class="areaSel"></select>
+          </div>
+          <div class="field">
+            <input id="binAreaCode" placeholder="Enter this area's code" inputmode="numeric" maxlength="12" />
+            <button id="binOpenBtn" class="btn" type="button">Open</button>
+          </div>
+
+          <h4 style="margin:16px 0 6px">Update area codes</h4>
+          <div class="muted" style="margin-bottom:6px"></div>
+          <div id="codeList" class="list"></div>
+        </div>
+      </div>
+
+      <div>
+        <h3 style="margin:10px 0 6px">Property Manager</h3>
+        <div class="field">
+          <select id="pmArea" class="areaSel"></select>
+        </div>
+        <div class="field">
+          <input id="pmCode" placeholder="Enter code" inputmode="numeric" maxlength="12" />
+          <button id="pmOpen" class="btn" type="button">View area</button>
+        </div>
+        <div class="muted" style="margin-top:6px"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<main>
+  <div class="toolbar app-only">
+    <div class="search">
+      <span>🔎</span><input id="search" placeholder="Search address…" />
+    </div>
+    <button id="refresh" class="btn" type="button">Refresh</button>
+    <button id="optimiseOut" class="btn" type="button">Optimise Out</button>
+    <button id="optimiseBack" class="btn" type="button">Optimise Back</button>
+  </div>
+
+  <div id="status" class="banner">Booting…</div>
+
+  <h2 style="margin:10px 0 12px 0;"><span id="areaTitle">All areas</span> — Addresses</h2>
+  <div id="list"></div>
+</main>
+
+<!-- GUARANTEED splash fade (non-module, runs even if modules fail) -->
+<script>
+(function(){
+  function showGate(){ try{ document.getElementById('splash').style.opacity='0'; setTimeout(()=>{ document.getElementById('splash').style.display='none'; document.getElementById('gate').style.display='block'; }, 650); }catch(e){} }
+  document.getElementById('continueBtn').addEventListener('click', showGate);
+  setTimeout(showGate, 3000);
+  // If something catastrophic happens, still allow scroll
+  window.addEventListener('error', function(){ document.documentElement.style.overflow='auto'; });
+})();
+</script>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-app.js";
+import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-auth.js";
+import { getFirestore, collection, doc, setDoc, getDoc, updateDoc, deleteDoc, onSnapshot, query, orderBy, where } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-firestore.js";
+
+// Firebase config
+const firebaseConfig = {
+  apiKey: "AIzaSyAaDT6hFD38_P1AhQMF_vT18tXG9_pp8Sw",
+  authDomain: "binbackinsolutions.firebaseapp.com",
+  projectId: "binbackinsolutions",
+  storageBucket: "binbackinsolutions.firebasestorage.app",
+  messagingSenderId: "740345071529",
+  appId: "1:740345071529:web:e960f05ba0c982194126b8",
+  measurementId: "G-6XK5H9LWWK"
+};
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+
+// ---------- helpers ----------
+const $=s=>document.querySelector(s);
+const statusEl=$("#status"); function setBanner(t){ statusEl.textContent=t; }
+const LS_USER='bbi_user_name';
+const LS_AREAS='bbi_areas_v1';
+function currentName(){ return localStorage.getItem(LS_USER) || ""; }
+function setCurrentName(name){ localStorage.setItem(LS_USER, name); }
+const slug=s=>s.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'');
+async function sha256Hex(text){
+  const enc = new TextEncoder().encode(text);
+  const buf = await crypto.subtle.digest('SHA-256', enc);
+  const arr = Array.from(new Uint8Array(buf)); return arr.map(b=>b.toString(16).padStart(2,'0')).join('');
+}
+function fmtShort(ts){ if(!ts) return ''; const d=new Date(ts); return d.toLocaleTimeString([], {hour:'numeric',minute:'2-digit'})+' · '+d.toLocaleDateString([], {weekday:'short'})+' '+d.toLocaleDateString([], {day:'2-digit',month:'short'}); }
+
+// App data
+let filterDay='All', filterText='', filterArea='All';
+let READ_ONLY=false;
+let ADDRS=[];
+let AREAS = JSON.parse(localStorage.getItem(LS_AREAS) || '["Queenstown","Tikipunga Retirement"]');
+
+// Minimal boot
+(async ()=>{
+  setBanner("Signing in…");
+  await signInAnonymously(auth);
+  setBanner("Connected");
+  hydrateAreaSelects();
+})();
+
+function hydrateAreaSelects(){
+  const aSel1=$("#pmArea"), aSel2=$("#binOpenArea"), aHeaderSel=$("#areaSel");
+  function fillAreas(){
+    const opts = (sel)=>{ sel.innerHTML=''; for(const a of AREAS){ const o=document.createElement('option'); o.value=a; o.textContent=a; sel.appendChild(o);} };
+    function fillSelects(){ opts(aSel1); opts(aSel2); aHeaderSel.innerHTML='<option value=\"All\">All areas</option>'+AREAS.map(a=>`<option>${a}</option>`).join(''); }
+    fillSelects();
+  }
+  fillAreas();
+}
+
+// Area add (admin)
+$("#addArea")?.addEventListener('click', ()=>{
+  const name = prompt('New area name:'); if(!name) return;
+  if(!AREAS.includes(name)) AREAS.push(name);
+  localStorage.setItem(LS_AREAS, JSON.stringify(AREAS));
+  hydrateAreaSelects();
+});
+
+// --- Gate logic
+const MASTER_BIN='9999';
+const UPDATE_CONFIRM='5952';
+const DEFAULT_AREA_CODE='0000';
+
+$("#binLogin").addEventListener('click', async ()=>{
+  const pass = ($("#binPass").value||'').trim();
+  if(pass !== MASTER_BIN){ alert('Incorrect BinBackIn code'); return; }
+  $("#binPanel").style.display='block';
+  buildCodeList();
+});
+
+$("#pmOpen").addEventListener('click', async ()=>{
+  const area = $("#pmArea").value;
+  const code = ($("#pmCode").value||'').trim();
+  const ok = await verifyAreaCode(area, code);
+  if(!ok){ alert('Incorrect code'); return; }
+  READ_ONLY=true;
+  await openArea(area);
+});
+
+$("#binOpenBtn").addEventListener('click', async ()=>{
+  const area = $("#binOpenArea").value;
+  const code = ($("#binAreaCode").value||'').trim();
+  const ok = await verifyAreaCode(area, code);
+  if(!ok){ alert('Incorrect area code'); return; }
+  READ_ONLY=false;
+  await openArea(area);
+});
+
+async function verifyAreaCode(areaName, code){
+  if(!code) return false;
+  const d = await getDoc(doc(db,'areas', slug(areaName)));
+  if(!d.exists()){
+    return code === DEFAULT_AREA_CODE; // default pass when none set
+  }else{
+    const h = await sha256Hex(code);
+    return (d.data().passHash === h);
+  }
+}
+
+// Build code management list
+async function buildCodeList(){
+  const list=$("#codeList"); list.innerHTML='';
+  for(const a of AREAS){
+    const row=document.createElement('div'); row.className='item';
+    row.innerHTML = `<div><b>${a}</b></div>
+      <div style="display:flex;gap:6px;align-items:center">
+        <button class="btn" data-act="update" data-area="${a}">Update code</button>
+      </div>`;
+    list.appendChild(row);
+  }
+}
+document.getElementById('codeList').addEventListener('click', async (e)=>{
+  const b=e.target.closest('[data-act="update"]'); if(!b) return;
+  const area=b.getAttribute('data-area');
+  const confirmCode = prompt(`Enter pass 5952 to change the code for ${area}:`);
+  if(confirmCode !== UPDATE_CONFIRM){ alert('Incorrect pass'); return; }
+  const newCode = prompt('New code for this area (min 4 characters):');
+  if(!newCode || newCode.trim().length < 4){ alert('Code too short'); return; }
+  const hash = await sha256Hex(newCode.trim());
+  try{
+    await setDoc(doc(db,'areas', slug(area)), { name:area, passHash:hash, updatedAt:Date.now() }, { merge:true });
+    alert('Code updated for ' + area);
+  }catch(e){ alert('Failed to update'); }
+});
+
+// --- App core (shared), locked behind gate
+const areaSel = $("#areaSel");
+const areaTitle = $("#areaTitle");
+function renderAreas() {
+  areaSel.innerHTML = '<option value="All">All areas</option>';
+  for (const a of AREAS) {
+    const opt = document.createElement('option');
+    opt.value = a; opt.textContent = a;
+    if (a === filterArea) opt.selected = true;
+    areaSel.appendChild(opt);
+  }
+  areaTitle.textContent = filterArea === 'All' ? 'All areas' : filterArea;
+}
+areaSel.addEventListener('change', ()=>{ filterArea = areaSel.value; renderAreas(); render(); });
+
+// Day filters + search
+document.getElementById('daySeg').addEventListener('click', (e)=>{
+  const b=e.target.closest('button'); if(!b) return;
+  document.querySelectorAll('#daySeg button').forEach(x=>x.classList.remove('active'));
+  b.classList.add('active'); filterDay=b.getAttribute('data-day'); render();
+});
+document.getElementById('search').addEventListener('input', e=>{ filterText=e.target.value.toLowerCase(); render(); });
+document.getElementById('refresh').addEventListener('click', ()=> location.reload());
+
+function statusLine(label, who, when){ return (who && when) ? `<span class="label">${label}</span> — <span class="who">${who}</span> — <span class="time">${fmtShort(when)}</span>` : '&nbsp;'; }
+function applyFilters(arr){
+  return arr.filter(it=> {
+    const dayOK = (filterDay==='All'||it.pickup===filterDay);
+    const txtOK = (!filterText||it.address?.toLowerCase().includes(filterText));
+    const area = it.area || 'Queenstown';
+    const areaOK = (filterArea==='All' || area===filterArea);
+    return dayOK && txtOK && areaOK;
+  });
+}
+
+function openInMaps(query){
+  if(!query) return;
+  query = String(query).trim().replace(/\s+/g,' ');
+  const isIOS = /iPad|iPhone|iPod/i.test(navigator.userAgent);
+  const encoded = encodeURIComponent(query);
+  const url = isIOS ? `maps://?q=${encoded}` :
+    `https://www.google.com/maps/search/?api=1&query=${encoded}`;
+  const w = window.open(url,'_blank','noopener'); if(!w) window.location.href = url;
+}
+
+function render(){
+  const listEl=$("#list"); listEl.innerHTML='';
+  const sorted = ADDRS.slice().sort((a,b)=>{
+    const ra = (typeof a.rank === 'number') ? a.rank : 1e9;
+    const rb = (typeof b.rank === 'number') ? b.rank : 1e9;
+    if(ra !== rb) return ra - rb;
+    return (a.address||'').localeCompare(b.address||'');
+  });
+  for(const it of applyFilters(sorted)){
+    const area = it.area || 'Queenstown';
+    const row=document.createElement('div'); row.className='addr'; row.dataset.id=it.id;
+    const outL = statusLine('Out', it.outBy, it.outAt);
+    const backL = statusLine('Back', it.backBy, it.backAt);
+    const q = `${it.address||''}, ${area}`;
+    row.innerHTML=`
+      <div class="topline">
+        <div class="name">${it.address||''}</div>
+        <div class="meta">
+          <span class="badge">📍 ${area}</span>
+          <span class="badge">🗓 ${it.pickup||''}</span>
+          ${READ_ONLY ? '' : `<button class="icon-btn del app-only" type="button" data-act="delete" data-id="${it.id}" aria-label="Delete address" title="Delete">−</button>`}
+        </div>
+      </div>
+      <div class="actions">
+        <div class="toggleWrap">
+          <label class="toggle">${READ_ONLY?`<input type="checkbox" disabled ${it.out?'checked':''}>`:`<input type="checkbox" data-id="${it.id}" data-act="out" ${it.out?'checked':''}>`} Out</label>
+          <div class="statusline" id="stat-out-${it.id}">${outL}</div>
+        </div>
+        <div class="toggleWrap">
+          <label class="toggle">${READ_ONLY?`<input type="checkbox" disabled ${it.back?'checked':''}>`:`<input type="checkbox" data-id="${it.id}" data-act="back" ${it.back?'checked':''}>`} Back</label>
+          <div class="statusline" id="stat-back-${it.id}">${backL}</div>
+        </div>
+        <a class="maplink" href="javascript:void(0)" data-q="${q}" data-act="map">Address map</a>
+      </div>
+      ${READ_ONLY ? '' : `<textarea class="note app-only" data-id="${it.id}" maxlength="120" placeholder="Notes"
+        autocapitalize="off" autocomplete="off" autocorrect="off" spellcheck="false" inputmode="text"></textarea>`}
+    `;
+    const ta = row.querySelector('textarea.note');
+    if(ta){ ta.value = it.note ? String(it.note) : ""; }
+    listEl.appendChild(row);
+  }
+  document.querySelectorAll('textarea.note').forEach(el=>{ el.style.height='auto'; const h=Math.min(el.scrollHeight,78); el.style.height=Math.max(30,h)+'px'; });
+}
+
+// Live subscribe: area only
+import { onSnapshot as fsOnSnapshot } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-firestore.js";
+async function subscribeArea(areaName){
+  const qy = query(collection(db,"addresses"), where("area","==",areaName));
+  fsOnSnapshot(qy, (snap)=>{
+    ADDRS = snap.docs.map(d=>({ id:d.id, ...d.data() }));
+    render();
+    setBanner("Live — synced");
+  });
+}
+
+async function subscribeAll(){
+  const qy = query(collection(db,"addresses"), orderBy("address"));
+  fsOnSnapshot(qy, (snap)=>{
+    ADDRS = snap.docs.map(d=>({ id:d.id, ...d.data() }));
+    render();
+    setBanner("Live — synced");
+  });
+}
+
+async function openArea(area){
+  filterArea = area;
+  if(READ_ONLY){
+    await subscribeArea(area);
+  }else{
+    await subscribeAll();
+  }
+  // Toggle body classes
+  document.body.classList.toggle('readonly', READ_ONLY);
+  document.body.classList.remove('gated');
+  document.getElementById('gate').style.display='none';
+  renderAreas();
+}
+
+// ----- App interactions (admin/full only) -----
+document.getElementById('list').addEventListener('change', async (e)=>{
+  if(READ_ONLY) return;
+  const cb=e.target.closest('input[type=checkbox]'); if(!cb) return;
+  const id=cb.getAttribute('data-id'), act=cb.getAttribute('data-act');
+  const t=Date.now(), who=currentName() || "User";
+  const patch={ updatedAt:t };
+  if(act==='out'){ patch.out=cb.checked; patch.outBy=cb.checked?who:""; patch.outAt=cb.checked?t:0; }
+  if(act==='back'){ patch.back=cb.checked; patch.backBy=cb.checked?who:""; patch.backAt=cb.checked?t:0; }
+  try{ await updateDoc(doc(db,'addresses',id), patch); }catch(err){ alert('Update failed'); }
+});
+
+const SAVE_T=new Map();
+document.getElementById('list').addEventListener('input', (e)=>{
+  if(READ_ONLY) return;
+  const ta=e.target.closest('textarea.note'); if(!ta) return;
+  const id=ta.getAttribute('data-id'); const v=ta.value.slice(0,120);
+  ta.style.height='auto'; ta.style.height=Math.max(30, Math.min(ta.scrollHeight,78))+'px';
+  if(SAVE_T.has(id)) clearTimeout(SAVE_T.get(id));
+  SAVE_T.set(id, setTimeout(async ()=>{
+    try{ await updateDoc(doc(db,"addresses",id), { note:v, updatedAt:Date.now() }); }catch(e){}
+    SAVE_T.delete(id);
+  }, 800));
+}, true);
+
+document.getElementById('list').addEventListener('blur', (e)=>{
+  if(READ_ONLY) return;
+  const ta=e.target.closest('textarea.note'); if(!ta) return;
+  const id=ta.getAttribute('data-id'); const v=ta.value.slice(0,120);
+  (async ()=>{ try{ await updateDoc(doc(db,"addresses",id), { note:v, updatedAt:Date.now() }); }catch(e){} })();
+}, true);
+
+document.getElementById('list').addEventListener('click', (e)=>{
+  const a = e.target.closest('[data-act="map"]'); if(a){ e.preventDefault(); openInMaps(a.getAttribute('data-q')); return; }
+  if(READ_ONLY) return;
+  const del=e.target.closest('[data-act="delete"]'); if(del){
+    if(!confirm('Remove this address?')) return;
+    const code = prompt('Enter passcode to confirm delete:');
+    if(code!=='5952'){ alert('Incorrect passcode'); return; }
+    (async ()=>{ try{ await deleteDoc(doc(db,'addresses',del.getAttribute('data-id'))); }catch(e){ alert('Delete failed'); } })();
+  }
+}, {passive:false});
+</script>
+</body>
+</html>
