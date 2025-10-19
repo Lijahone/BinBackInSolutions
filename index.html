@@ -1,0 +1,840 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Bin Back In Solutions</title>
+<style>
+  :root{ --bg:#f7f7fb; --card:#ffffff; --ink:#0f172a; --muted:#6b7280; --border:#e5e7eb; --brand:#2563eb; --accent:#eef2ff; }
+  @media (prefers-color-scheme: dark){
+    :root{ --bg:#0b1020; --card:#0f1529; --ink:#e5e7eb; --muted:#9aa1b2; --border:#2a3352; --brand:#3b82f6; --accent:#121a35; }
+  }
+  html,body{margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif}
+  header{position:sticky;top:0;background:var(--card);border-bottom:1px solid var(--border);
+    padding:10px 12px;display:flex;align-items:center;gap:8px;z-index:10;flex-wrap:wrap}
+  .brand{font-weight:800;font-size:18px}
+  .spacer{flex:1}
+  .btn{padding:10px 14px;border:1px solid var(--border);border-radius:12px;background:var(--card);cursor:pointer;font-weight:600}
+  .seg{display:flex;gap:6px;background:var(--bg);padding:4px;border-radius:12px;border:1px solid var(--border)}
+  .seg button{padding:8px 12px;border:0;border-radius:10px;background:transparent;font-weight:600;color:var(--muted);cursor:pointer}
+  .seg button.active{background:var(--card);color:var(--ink);border:1px solid var(--border)}
+  main{max-width:980px;margin:0 auto;padding:12px}
+  .toolbar{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0}
+  .search{flex:1;display:flex;align-items:center;gap:8px;border:1px solid var(--border);
+    background:var(--card);padding:8px 12px;border-radius:12px;min-width:180px}
+  .search input{border:0;outline:0;background:transparent;color:var(--ink);width:100%;font-size:16px}
+  .pill{border:1px solid var(--border);border-radius:999px;padding:8px 12px;background:var(--card)}
+  .banner{display:flex;gap:8px;align-items:center;border:1px dashed var(--border);background:#fff5; padding:8px 12px;border-radius:10px;font-size:12px}
+
+  .addr{display:grid;gap:12px;border:1px solid var(--border);border-radius:16px;padding:14px 12px;margin-bottom:12px;background:var(--card)}
+  .topline{display:flex;align-items:center;gap:10px;justify-content:space-between;flex-wrap:wrap}
+  .name{font-weight:800}
+  .meta{color:var(--muted);font-size:12px;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  .badge{border:1px solid var(--border);border-radius:999px;padding:6px 10px;display:inline-flex;align-items:center;gap:6px}
+  .icon-btn{border:1px solid var(--border);background:var(--card);font-size:16px;line-height:1;min-width:28px;min-height:26px;
+    padding:2px 8px;border-radius:8px;color:var(--muted);cursor:pointer}
+  .actions{display:flex;gap:12px 14px;align-items:flex-start;flex-wrap:wrap}
+  .actions > *{flex:0 0 auto;}
+  .toggle{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--border);border-radius:999px;padding:8px 12px}
+  .statusline{height:22px;line-height:22px;font-size:13px;color:var(--muted)}
+  .statusline .label{font-weight:700;color:var(--ink)}
+  .statusline .who{font-weight:700}
+  .statusline .time{opacity:.9}
+
+  /* Photo block */
+  .bbi-photo{display:grid;grid-template-columns:120px 1fr;gap:14px;margin-top:6px;
+    padding:12px;border:1px solid var(--border);border-radius:14px;background:linear-gradient(180deg,#ffffff 0%, #fafbff 100%);}
+  @media (prefers-color-scheme: dark){
+    .bbi-photo{background:linear-gradient(180deg,#101628 0%, #0d1426 100%);}
+  }
+  .bbi-thumb{width:120px;height:120px;border-radius:12px;border:1px solid #e5e7eb;overflow:hidden;background:#f4f6fb;
+    display:flex;align-items:center;justify-content:center}
+  .bbi-thumb img{width:100%;height:100%;object-fit:cover;display:block}
+  .bbi-tools{display:flex;flex-direction:column;gap:8px}
+  .bbi-row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+  .bbi-btn{padding:10px 14px;border:0;border-radius:10px;background:#2563eb;color:#fff;font-weight:700;cursor:pointer}
+  .bbi-secondary{padding:10px 14px;border:0;border-radius:10px;background:#eef2ff;color:#1e40af;font-weight:700;cursor:pointer}
+  .bbi-cap{font-size:12px;color:#667085;min-height:16px}
+
+  .note{width:100%;font-size:16px;line-height:1.35;padding:6px 10px;border:1px solid var(--border);border-radius:10px;resize:none;overflow:hidden;height:30px;min-height:30px;max-height:78px;background:transparent}
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">Bin Back In Solutions</div>
+  <select id="areaSel" class="btn" title="Area">
+    <option value="All">All areas</option>
+  </select>
+  <button id="addArea" class="btn" type="button">+ Area</button>
+  <div class="spacer"></div>
+  <div class="seg" id="daySeg">
+    <button data-day="All" class="active">All</button>
+    <button data-day="Tuesday">Tue</button>
+    <button data-day="Wednesday">Wed</button>
+    <button data-day="Thursday">Thu</button>
+    <button data-day="Friday">Fri</button>
+  </div>
+  <button id="addBtn" class="btn" type="button">+ Address</button>
+  <button id="optimiseOut" class="btn" type="button">Optimise Out</button>
+  <button id="optimiseBack" class="btn" type="button">Optimise Back</button>
+  <button id="refresh" class="btn" type="button">Refresh</button>
+  <button id="userBtn" class="btn" type="button">User</button>
+</header>
+
+<main>
+  <div class="toolbar">
+    <div class="search">
+      <span>🔎</span><input id="search" placeholder="Search address…" />
+    </div>
+  </div>
+  <div id="status" class="banner">Booting…</div>
+
+  <h2 style="margin:10px 0 12px 0;"><span id="areaTitle">All areas</span> — Addresses</h2>
+  <div id="list"></div>
+</main>
+
+<script type="module">
+/* ===========================
+   Firebase (v10.13.1 modules)
+   =========================== */
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-app.js";
+import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-auth.js";
+import { getFirestore, collection, doc, setDoc, getDoc, updateDoc, deleteDoc, onSnapshot, query, orderBy, serverTimestamp, Timestamp } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-firestore.js";
+import * as ST from "https://www.gstatic.com/firebasejs/10.13.1/firebase-storage.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyAaDT6hFD38_P1AhQMF_vT18tXG9_pp8Sw",
+  authDomain: "binbackinsolutions.firebaseapp.com",
+  projectId: "binbackinsolutions",
+  storageBucket: "binbackinsolutions.appspot.com",
+  appId: "1:740345071529:web:e960f05ba0c982194126b8",
+};
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+
+/* ========
+   Helpers
+   ======== */
+const $=s=>document.querySelector(s);
+const statusEl=$("#status"); function setBanner(t){ statusEl.textContent=t; }
+function currentName(){ return localStorage.getItem('bbi_user_name') || ""; }
+function setCurrentName(name){ localStorage.setItem('bbi_user_name', name); }
+function slug(s){ return (s||'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,''); }
+function fmtShort(ts){ if(!ts) return ''; const d=new Date(ts); return d.toLocaleTimeString([], {hour:'numeric',minute:'2-digit'})+' · '+d.toLocaleDateString([], {weekday:'short'})+' '+d.toLocaleDateString([], {day:'2-digit',month:'short'}); }
+
+/* === Robust wiring helpers === */
+function tsToMillis(v){
+  if(!v) return 0;
+  try{
+    if (typeof v === 'number') return v;
+    if (typeof v.toMillis === 'function') return v.toMillis();
+    if (v.seconds) return (v.seconds*1000) + Math.floor((v.nanoseconds||0)/1e6);
+  }catch(_){ }
+  return 0;
+}
+function setBannerErr(msg){
+  try{ setBanner('⚠️ ' + msg); }catch(_){}
+  console.error(msg);
+}
+function onSafe(el, ev, fn, opts={}){
+  if(!el) return;
+  el.addEventListener(ev, (e)=>{
+    try{ fn(e); }catch(err){ setBannerErr(err && err.message ? err.message : String(err)); }
+  }, opts);
+}
+window.addEventListener('error', (e)=> setBannerErr(e.message || 'Script error'));
+window.addEventListener('unhandledrejection', (e)=> setBannerErr((e.reason && e.reason.message) ? e.reason.message : String(e.reason)));
+
+
+/* =============================
+   Persistent Photo Vault (IDB)
+   ============================= */
+const IDB_NAME='bbi_photos_v1', STORE='photos';
+function idbOpen(){
+  return new Promise((resolve, reject)=>{
+    const r = indexedDB.open(IDB_NAME, 1);
+    r.onupgradeneeded = ()=>{
+      const db = r.result;
+      if(!db.objectStoreNames.contains(STORE)) db.createObjectStore(STORE);
+    };
+    r.onsuccess = ()=> resolve(r.result);
+    r.onerror = ()=> reject(r.error);
+  });
+}
+async function idbGet(key){
+  try{
+    const db = await idbOpen();
+    return await new Promise((resolve,reject)=>{
+      const tx = db.transaction(STORE,'readonly'); const st = tx.objectStore(STORE);
+      const g = st.get(key);
+      g.onsuccess = ()=> resolve(g.result||'');
+      g.onerror = ()=> reject(g.error);
+    });
+  }catch{ return ''; }
+}
+async function idbSet(key, value){
+  try{
+    const db = await idbOpen();
+    await new Promise((resolve,reject)=>{
+      const tx = db.transaction(STORE,'readwrite'); const st = tx.objectStore(STORE);
+      const p = st.put(value, key);
+      p.onsuccess = ()=> resolve(true);
+      p.onerror = ()=> reject(p.error);
+    });
+    return true;
+  }catch{ return false; }
+}
+
+/* ------- Local fallbacks (thumbs + live URL tokens) ------- */
+function setThumb(id, dataUrl){
+  try{ localStorage.setItem('bbi_thumb_'+id, dataUrl); }catch(_){ try{ sessionStorage.setItem('bbi_thumb_'+id, dataUrl); }catch(_){ } }
+}
+function getThumb(id){
+  try{ const v = localStorage.getItem('bbi_thumb_'+id); if(v) return v; }catch(_){}
+  try{ const v2 = sessionStorage.getItem('bbi_thumb_'+id); if(v2) return v2; }catch(_){}
+  return '';
+}
+function setLiveURL(id, url){ try{ localStorage.setItem('bbi_photo_live_'+id, url); }catch(_){} }
+function getLiveURL(id){ try{ return localStorage.getItem('bbi_photo_live_'+id) || ''; }catch(_){ return ''; } }
+
+// Caption persistence (survives refresh/restart)
+function setCap(id, text, v){
+  try{
+    const payload = JSON.stringify({t: text||'', v: Number(v)||0});
+    localStorage.setItem('bbi_cap_'+id, payload);
+  }catch(_){}
+}
+function getCap(id){
+  try{
+    const raw = localStorage.getItem('bbi_cap_'+id);
+    if(!raw) return {t:'', v:0};
+    try{
+      const obj = JSON.parse(raw);
+      if (obj && typeof obj === 'object' && 't' in obj) return {t:String(obj.t||''), v:Number(obj.v)||0};
+    }catch(_){ /* legacy string */ return {t: raw, v:0}; }
+  }catch(_){}
+  return {t:'', v:0};
+}
+
+const LS_AREAS='bbi_areas_v1';
+let AREAS = JSON.parse(localStorage.getItem(LS_AREAS) || '["Queenstown"]');
+let filterDay='All', filterText='', filterArea='All';
+function renderAreas(){
+  const sel=$("#areaSel");
+  sel.innerHTML='<option value="All">All areas</option>';
+  for(const a of AREAS){
+    const o=document.createElement('option'); o.value=a; o.textContent=a;
+    if(a===filterArea) o.selected=true;
+    sel.appendChild(o);
+  }
+  $("#areaTitle").textContent = filterArea==='All' ? 'All areas' : filterArea;
+}
+onSafe(document.getElementById('daySeg'),'click',(e)=>{
+  const b=e.target.closest('button'); if(!b) return;
+  document.querySelectorAll('#daySeg button').forEach(x=>x.classList.remove('active'));
+  b.classList.add('active'); filterDay=b.getAttribute('data-day'); render();
+});
+onSafe(document.getElementById('search'),'input',(e)=>{ filterText=e.target.value.toLowerCase(); render(); });
+onSafe(document.getElementById('addArea'),'click',()=>{
+  const name = prompt('New area name:'); if(!name) return;
+  if(!AREAS.includes(name)) AREAS.push(name);
+  localStorage.setItem(LS_AREAS, JSON.stringify(AREAS));
+  filterArea = name; renderAreas(); render();
+});
+onSafe(document.getElementById('areaSel'),'change',()=>{ filterArea=$("#areaSel").value; renderAreas(); render(); });
+
+/* ============
+   Map opener
+   ============ */
+onSafe(document.getElementById('list'),'click',(e)=>{
+  const a = e.target.closest('[data-act="map"]'); if(!a) return;
+  e.preventDefault();
+  const query=a.getAttribute('data-q');
+  const isIOS = /iPad|iPhone|iPod/i.test(navigator.userAgent);
+  const encoded = encodeURIComponent(query);
+  const url = isIOS ? `maps://?q=${encoded}` : `https://www.google.com/maps/search/?api=1&query=${encoded}`;
+  const w = window.open(url,'_blank','noopener'); if(!w) window.location.href = url;
+}, {passive:false});
+
+/* ================
+   Notes autosave
+   ================ */
+const SAVE_T=new Map();
+onSafe(document.getElementById('list'),'input',(e)=>{
+  const ta=e.target.closest('textarea.note'); if(!ta) return;
+  const id=ta.getAttribute('data-id'); const v=ta.value.slice(0,120);
+  ta.style.height='auto'; ta.style.height=Math.max(30, Math.min(ta.scrollHeight,78))+'px';
+  if(SAVE_T.has(id)) clearTimeout(SAVE_T.get(id));
+  SAVE_T.set(id, setTimeout(async ()=>{
+    try{ await updateDoc(doc(db,"addresses",id), { note:v, updatedAt:Date.now() }); }catch(e){}
+    SAVE_T.delete(id);
+  }, 800));
+}, true);
+
+/* =======================
+   Delete & Edit handlers
+   ======================= */
+let DELETE_LOCK=false;
+async function handleDelete(id){
+  if(DELETE_LOCK) return; DELETE_LOCK=true;
+  try{
+    if(!confirm('Remove this address?')) return;
+    const code = prompt('Enter passcode to confirm delete:'); if(code!=='5952'){ alert('Incorrect passcode'); return; }
+    await deleteDoc(doc(db,'addresses',id));
+  }catch(e){ alert('Delete failed'); }
+  finally{ setTimeout(()=>{ DELETE_LOCK=false; }, 300); }
+}
+onSafe(document.getElementById('list'),'click',(e)=>{
+  const del=e.target.closest('[data-act="delete"]'); if(!del) return;
+  e.preventDefault(); handleDelete(del.getAttribute('data-id'));
+}, {passive:false});
+
+onSafe(document.getElementById('list'),'click',async (e)=>{
+  const ed=e.target.closest('[data-act="edit"]'); if(!ed) return;
+  e.preventDefault();
+  const id = ed.getAttribute('data-id');
+  try{
+    const snap = await getDoc(doc(db,'addresses', id));
+    const data = snap.exists() ? snap.data() : {};
+    const curAddr = data.address || '';
+    const curPickup = data.pickup || 'Tuesday';
+    const curArea = data.area || 'Queenstown';
+
+    const addr = prompt('Edit address:', curAddr);
+    if(addr === null) return;
+
+    let pickup = prompt('Pickup day (Tuesday/Wednesday/Thursday/Friday):', curPickup) || curPickup;
+    pickup = pickup.trim();
+    const norm = { tue:'Tuesday', tues:'Tuesday', tuesday:'Tuesday',
+                   wed:'Wednesday', weds:'Wednesday', wednesday:'Wednesday',
+                   thu:'Thursday', thur:'Thursday', thurs:'Thursday', thursday:'Thursday',
+                   fri:'Friday', friday:'Friday' };
+    pickup = norm[pickup.toLowerCase()] || pickup;
+    if(!['Tuesday','Wednesday','Thursday','Friday'].includes(pickup)){
+      alert('Invalid pickup day.'); return;
+    }
+    let area = prompt('Area name:', curArea) || curArea;
+    area = area.trim() || curArea;
+
+    await updateDoc(doc(db,'addresses', id), { address: (addr||'').trim(), pickup, area, updatedAt: Date.now() });
+    if(confirm('Save your current GPS as this address location (helps sorting by distance)?')){
+      try{
+        const here = await ensureGeo(6000);
+        if(here){ await updateDoc(doc(db,'addresses', id), { lat: here.lat, lng: here.lng, updatedAt: Date.now() }); }
+      }catch(_){}
+    }
+  }catch(err){
+    alert('Edit failed: ' + (err && err.message ? err.message : err));
+  }
+}, {passive:false});
+
+/* ==================
+   Status / Filters
+   ================== */
+function statusLine(label, who, when){ return (who && when) ? `<span class="label">${label}</span> — <span class="who">${who}</span> — <span class="time">${fmtShort(when)}</span>` : '&nbsp;'; }
+function applyFilters(arr){
+  return arr.filter(it=> {
+    const dayOK = (filterDay==='All'||it.pickup===filterDay);
+    const txtOK = (!filterText||it.address?.toLowerCase().includes(filterText));
+    const area = it.area || 'Queenstown';
+    const areaOK = (filterArea==='All' || area===filterArea);
+    return dayOK && txtOK && areaOK;
+  });
+}
+
+/* ===============
+   GPS (session)
+   =============== */
+let GEO_CACHE = null;
+async function ensureGeo(timeout=6000){
+  if (GEO_CACHE) return GEO_CACHE;
+  if (sessionStorage.getItem('geo_ok') === '1' && sessionStorage.getItem('geo_lat')) {
+    GEO_CACHE = { lat: +sessionStorage.getItem('geo_lat'), lng: +sessionStorage.getItem('geo_lng') };
+    return GEO_CACHE;
+  }
+  return new Promise(resolve=>{
+    if(!navigator.geolocation) return resolve(null);
+    let done=false;
+    const ok = pos=>{
+      if(done) return; done=true;
+      GEO_CACHE = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+      sessionStorage.setItem('geo_ok','1');
+      sessionStorage.setItem('geo_lat', String(GEO_CACHE.lat));
+      sessionStorage.setItem('geo_lng', String(GEO_CACHE.lng));
+      resolve(GEO_CACHE);
+    };
+    const err = _=>{
+      if(done) return; done=true; resolve(null);
+    };
+    navigator.geolocation.getCurrentPosition(ok, err, { enableHighAccuracy:false, timeout, maximumAge:60000 });
+    setTimeout(()=>{ if(!done){ done=true; resolve(null); } }, timeout+250);
+  });
+}
+function haversineKm(a, b){
+  const toRad = d => d * Math.PI/180, R = 6371;
+  const dLat = toRad(b.lat - a.lat), dLng = toRad(b.lng - a.lng);
+  const sa = Math.sin(dLat/2)**2 + Math.cos(toRad(a.lat))*Math.cos(toRad(b.lat))*Math.sin(dLng/2)**2;
+  return 2 * R * Math.asin(Math.sqrt(sa));
+}
+function buildMapsUrl(origin, jobs){
+  if(!jobs.length) return null;
+  const dest = encodeURIComponent(jobs[0]);
+  const wps  = jobs.slice(1,24).map(p=>encodeURIComponent(p)).join('|');
+  const wpParam = wps ? `optimize:true|${wps}` : 'optimize:true';
+  const originStr = origin ? `${origin.lat},${origin.lng}` : '';
+  return `https://www.google.com/maps/dir/?api=1${originStr?`&origin=${encodeURIComponent(originStr)}`:''}&destination=${dest}&waypoints=${wpParam}`;
+}
+
+/* ==========================
+   Rendering & global state
+   ========================== */
+let ADDRS=[];
+function render(){
+  renderAreas();
+  const listEl=$("#list"); listEl.innerHTML='';
+  const sorted = ADDRS.slice().sort((a,b)=>{
+    const ra = (typeof a.rank === 'number') ? a.rank : 1e9;
+    const rb = (typeof b.rank === 'number') ? b.rank : 1e9;
+    if(ra !== rb) return ra - rb;
+    return (a.address||'').localeCompare(b.address||'');
+  });
+  for(const it of applyFilters(sorted)){
+    const area = it.area || 'Queenstown';
+    const row=document.createElement('div'); row.className='addr'; row.dataset.id=it.id;
+    const outL = statusLine('Out', it.outBy, it.outAt);
+    const backL = statusLine('Back', it.backBy, it.backAt);
+    const q = `${it.address||''}, ${area}`;
+    row.innerHTML=`
+      <div class="topline">
+        <div class="name">${it.address||''}</div>
+        <div class="meta">
+          <span class="badge">📍 ${area}</span>
+          <span class="badge">🗓 ${it.pickup||''}</span>
+          <button class="icon-btn" data-act="edit" data-id="${it.id}" title="Edit">✎</button>
+          <button class="icon-btn" data-act="delete" data-id="${it.id}" title="Delete">−</button>
+        </div>
+      </div>
+
+      <div class="bbi-photo">
+        <div class="bbi-thumb"><img alt="" data-bind="thumb"></div>
+        <div class="bbi-tools">
+          <div class="bbi-row">
+            <button class="bbi-btn" data-act="pick">Add/Replace photo</button>
+            <button class="bbi-secondary" data-act="view">View full size</button>
+            <input type="file" accept="image/*" capture="environment" style="display:none">
+          </div>
+          <div class="bbi-cap"></div>
+        </div>
+      </div>
+
+      <div class="actions">
+        <div>
+          <label class="toggle"><input type="checkbox" data-id="${it.id}" data-act="out" ${it.out?'checked':''}> Out</label>
+          <div class="statusline" id="stat-out-${it.id}">${outL}</div>
+        </div>
+        <div>
+          <label class="toggle"><input type="checkbox" data-id="${it.id}" data-act="back" ${it.back?'checked':''}> Back</label>
+          <div class="statusline" id="stat-back-${it.id}">${backL}</div>
+        </div>
+        <a class="pill" href="javascript:void(0)" data-q="${q}" data-act="map">Address map</a>
+      </div>
+      <textarea class="note" data-id="${it.id}" maxlength="120" placeholder="Notes"
+        autocapitalize="off" autocomplete="off" autocorrect="off" spellcheck="false" inputmode="text">${it.note?String(it.note):""}</textarea>
+    `;
+    listEl.appendChild(row);
+    initPhoto(row, it.id);
+  }
+  document.querySelectorAll('textarea.note').forEach(el=>{ el.style.height='auto'; const h=Math.min(el.scrollHeight,78); el.style.height=Math.max(30,h)+'px'; });
+  // Sync-priority: ensure newest caption (by photoVersion) wins after initial render
+  try{
+    document.querySelectorAll('.addr').forEach(async card=>{
+      const id = card.dataset.id;
+      const capEl = card.querySelector('.bbi-cap');
+      const data = ADDRS.find(x=>x.id===id) || {};
+      const fromSnapV = Number((data.photoVersion||data.photoAtLocalMs||0) || 0);
+      // read local caption if present (supports both legacy string and JSON {t,v})
+      let localRaw = null; try{ localRaw = localStorage.getItem('bbi_cap_'+id); }catch(_){}
+      let localT=''; let localV=0; let localBy=''; let localPlain='';
+      if(localRaw){
+        try{ const obj = JSON.parse(localRaw); localT=String(obj.t||''); localV=Number(obj.v||0); localBy=String(obj.by||''); localPlain=String(obj.plain||''); }
+        catch(_){ localT=String(localRaw); localV=0; }
+      }
+      // decide winner
+      const curV = Number(card.dataset.capVersion||0);
+      const bestV = Math.max(curV||0, fromSnapV||0, localV||0);
+      if(bestV){
+        if(bestV === fromSnapV && (data.photoBy||data.photoAtLocalText||data.photoAt||data.photoAtMs)){
+          // prefer snapshot text if it matches bestV
+          const when = (data.photoAtLocalMs||0) || (data.photoAtMs||0) || 0;
+          const textStr = (data.photoAtLocalText||'') || (when?fmtShort(when):'');
+          const who = data.photoBy||'User';
+          if(textStr && capEl){ capEl.textContent = `Last photo by ${who} at ${textStr}`; card.dataset.capVersion = String(bestV); try{ localStorage.setItem('bbi_cap_'+id, JSON.stringify({t:capEl.textContent,v:bestV,by:who,plain:textStr})); }catch(_){}} 
+        }else if(bestV === localV && localT){
+          // prefer local cached caption
+          if(capEl){ capEl.textContent = localT; card.dataset.capVersion = String(localV); }
+        }
+      }
+    });
+  }catch(e){ try{ setBanner('⚠️ '+(e.message||e)); }catch(_){} }
+
+}
+
+/* ==================
+   Toggles (Out/Back)
+   ================== */
+onSafe(document.getElementById('list'),'change',async (e)=>{
+  const cb=e.target.closest('input[type=checkbox]'); if(!cb) return;
+  const id=cb.getAttribute('data-id'), act=cb.getAttribute('data-act');
+  const t=Date.now(), who=currentName() || ("User-" + (auth.currentUser?.uid?.slice(-4)||'0000'));
+  const patch={ updatedAt:t };
+  if(act==='out'){ patch.out=cb.checked; patch.outBy=cb.checked?who:""; patch.outAt=cb.checked?t:0; }
+  if(act==='back'){ patch.back=cb.checked; patch.backBy=cb.checked?who:""; patch.backAt=cb.checked?t:0; }
+  try{ await updateDoc(doc(db,'addresses',id), patch); }catch(err){ alert('Update failed'); }
+}, true);
+
+/* ==================
+   Photo persistence
+   ================== */
+async function fileToDataURL(file){
+  const fr=new FileReader();
+  return await new Promise((res,rej)=>{ fr.onload=()=>res(fr.result); fr.onerror=rej; fr.readAsDataURL(file); });
+}
+async function compressImageToTarget(file, targetKB=320){
+  const steps = [
+    {maxSide:1600, q:0.72},
+    {maxSide:1366, q:0.68},
+    {maxSide:1200, q:0.65},
+    {maxSide:1024, q:0.62},
+    {maxSide:900, q:0.6},
+  ];
+  let blob = file;
+  for(const s of steps){
+    blob = await downscale(blob, s.maxSide, s.q);
+    if(blob.size <= targetKB*1024) break;
+  }
+  return new File([blob], 'latest.jpg', {type:'image/jpeg', lastModified: Date.now()});
+}
+async function downscale(file, maxSide, quality){
+  const fr = new FileReader();
+  const dataURL = await new Promise((res, rej)=>{ fr.onload=()=>res(fr.result); fr.onerror=rej; fr.readAsDataURL(file); });
+  const img = new Image(); img.decoding='async'; img.style.imageOrientation='from-image';
+  await new Promise((res, rej)=>{ img.onload=res; img.onerror=rej; img.src=dataURL; });
+  let {width, height} = img;
+  if (Math.max(width,height) > maxSide){
+    if (width >= height){ height = Math.round(height*(maxSide/width)); width = maxSide; }
+    else { width = Math.round(height*(maxSide/height)); height = maxSide; }
+  }
+  const canvas = document.createElement('canvas'); canvas.width=width; canvas.height=height;
+  const ctx = canvas.getContext('2d'); ctx.drawImage(img,0,0,width,height);
+  return await new Promise(res => canvas.toBlob(res, 'image/jpeg', quality));
+}
+
+async function bestPhotoURL(id){
+  // Prefer vault (dataURL) to guarantee presence
+  const vault = await idbGet(id);
+  if(vault){ return vault; }
+
+  const cachedLive = getLiveURL(id);
+  if(cachedLive){ return cachedLive; }
+
+  try{
+    const storage = ST.getStorage(app, "gs://binbackinsolutions.appspot.com");
+    const url = await ST.getDownloadURL(ST.ref(storage, `addresses/${id}/latest.jpg`));
+    setLiveURL(id, url);
+    return url;
+  }catch(_){}
+  try{
+    const snap = await getDoc(doc(db,'addresses', id));
+    const data = snap && snap.data && snap.data();
+    if(data && data.photoUrl){
+      setLiveURL(id, data.photoUrl);
+      return data.photoUrl;
+    }
+  }catch(_){}
+  const t = getThumb(id);
+  return t || '';
+}
+
+async function loadImageKeepCurrent(img, url){
+  if(!url) return false;
+  return new Promise(resolve=>{
+    const once = ok => { resolve(ok); };
+    const candidate = new Image();
+    candidate.onload = ()=>{
+      if(img.src !== url) img.src = url;
+      once(true);
+    };
+    candidate.onerror = ()=> once(false);
+    candidate.src = url;
+  });
+}
+
+async function refreshPhoto(card, id, dataHint=null){
+  const img = card.querySelector('img[data-bind="thumb"]');
+  const cap = card.querySelector('.bbi-cap');
+
+  // 1) Show vault or thumb immediately (never blank)
+  const vault = await idbGet(id);
+  if(vault){ if(img.src !== vault) img.src = vault; }
+  else {
+    const t = getThumb(id);
+    if(t && img.src !== t) img.src = t;
+  }
+
+  // 2) Try remote; only replace if load succeeds
+  const remote = await bestPhotoURL(id);
+  await loadImageKeepCurrent(img, remote);
+
+  // 3) If remote is a network URL, copy into vault for permanence
+  if(remote && !remote.startsWith('data:')){
+    try{
+      const resp = await fetch(remote, {cache:'no-store'});
+      const blob = await resp.blob();
+      const r = new FileReader();
+      r.onload = async ()=>{ const dataUrl = r.result; setThumb(id, dataUrl); await idbSet(id, dataUrl); };
+      r.readAsDataURL(blob);
+    }catch(_){}
+  }
+
+  // 4) Caption (with version guard to avoid downgrades)
+  try{
+    const snap = await getDoc(doc(db,'addresses', id));
+    const data = snap && snap.data && snap.data();
+    if(data && data.photoAt){
+      cap.textContent = `Last photo by ${data.photoBy||'User'} at ${fmtShort(data.photoAt)}`;
+    }
+  }catch(_){}
+}
+
+function initPhoto(card, id){
+  const img = card.querySelector('img[data-bind="thumb"]');
+  const cap = card.querySelector('.bbi-cap');
+  const pickBtn = card.querySelector('[data-act="pick"]');
+  const viewBtn = card.querySelector('[data-act="view"]');
+  const fileInp = card.querySelector('input[type=file]');
+
+  (async ()=>{
+    const vault = await idbGet(id);
+    if(vault){ img.src = vault; }
+    else { const t = getThumb(id); if(t){ img.src = t; } }
+    const cachedCap = getCap(id); if(cachedCap.t){ cap.textContent = cachedCap.t; card.dataset.capVersion = String(cachedCap.v||0); }
+    refreshPhoto(card, id);
+  })();
+
+  viewBtn.addEventListener('click', ()=>{
+    if(!img.src) return;
+    const b=document.createElement('div');
+    Object.assign(b.style,{position:'fixed',inset:'0',background:'rgba(0,0,0,.85)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:9999});
+    const big=new Image(); big.src=img.src; big.style.maxWidth='96vw'; big.style.maxHeight='92vh'; big.style.borderRadius='12px';
+    b.appendChild(big); b.addEventListener('click',()=>document.body.removeChild(b));
+    document.body.appendChild(b);
+  });
+
+  pickBtn.addEventListener('click', ()=> fileInp.click());
+  fileInp.addEventListener('change', async ()=>{
+    const f = fileInp.files && fileInp.files[0]; if(!f) return;
+    try{
+      const small = await compressImageToTarget(f, 320);
+      const dataUrl = await fileToDataURL(small);
+
+      // 1) Show immediately; **persist as authoritative** (never removed)
+      img.src = dataUrl;
+      await idbSet(id, dataUrl);
+      setThumb(id, dataUrl);
+
+              // Update caption immediately with device local time
+        const whenTs = Date.now() + Math.floor(Math.random()*1000);
+        const whoNow = currentName() || 'User';
+        const nowText = fmtShort(whenTs);
+        cap.textContent = `Last photo by ${whoNow} at ${nowText}`;
+// Write the new timestamp to Firestore immediately so it syncs and overwrites old values
+try{
+  await updateDoc(doc(db,'addresses', id), {
+    photoAtLocalText: nowText,
+    photoAtLocalMs: whenTs,
+    photoBy: whoNow,
+    photoVersion: whenTs,
+    updatedAt: whenTs,
+    photoStatus: 'pending'
+  });
+}catch(_){}
+
+        card.dataset.capVersion = String(whenTs);
+        setCap(id, cap.textContent, whenTs);
+// 2) Upload to Storage (best-effort); update Firestore timestamp
+      try{
+        const storage = ST.getStorage(app, "gs://binbackinsolutions.appspot.com");
+        const refPath = ST.ref(storage, `addresses/${id}/latest.jpg`);
+        const task = ST.uploadBytesResumable(refPath, small, { contentType: 'image/jpeg', cacheControl:'public,max-age=0,no-cache' });
+        await new Promise((resolve, reject)=>{
+          const tm = setTimeout(()=>reject(new Error('timeout')), 60000);
+          task.on('state_changed', _=>{}, err=>{ clearTimeout(tm); reject(err); }, ()=>{ clearTimeout(tm); resolve(); });
+        });
+        const urlBase = await ST.getDownloadURL(refPath);
+        const now = whenTs; // reuse the version we wrote pre-upload
+        const who = whoNow;
+        const url = `${urlBase}?v=${now}`; setLiveURL(id, url);
+        const nowText2 = nowText;
+        await updateDoc(doc(db,'addresses', id), { photoAtLocalText: nowText2, photoAtLocalMs: now, photoBy: who, photoUrl: url, photoVersion: now, photoAt: serverTimestamp(), updatedAt: now });
+        cap.textContent = `Last photo by ${who} at ${nowText2}`;
+        card.dataset.capVersion = String(now);
+        setCap(id, cap.textContent, now);
+        // Keep displaying local vault image; remote may rotate tokens, so don't swap
+      }catch(_){
+        // Upload failed? No problem — the vault copy is still displayed forever.
+      }
+    }catch(e){
+      cap.textContent = `Upload failed — ${e?.code||e?.message||e}`;
+    }finally{
+      fileInp.value='';
+    }
+  });
+}
+
+/* =========================
+   Optimise Out / Back
+   ========================= */
+onSafe(document.getElementById('optimiseOut'),'click',()=> planOptimise('out'), {passive:true});
+onSafe(document.getElementById('optimiseBack'),'click',()=> planOptimise('back'), {passive:true});
+
+async function planOptimise(kind){ // 'out' | 'back'
+  const origin = await ensureGeo(6000);
+  const visible = applyFilters(ADDRS);
+  const isDone  = a => (kind==='out' ? !!a.out : !!a.back);
+  const need    = visible.filter(a => !isDone(a));
+  const done    = visible.filter(a =>  isDone(a));
+
+  let sortedNeed = need.slice();
+  if(origin){
+    const withLL = sortedNeed.filter(it => typeof it.lat==='number' && typeof it.lng==='number');
+    const noLL   = sortedNeed.filter(it => !(typeof it.lat==='number' && typeof it.lng==='number'));
+    withLL.sort((a,b)=> haversineKm(origin, {lat:a.lat,lng:a.lng}) - haversineKm(origin, {lat:b.lat,lng:b.lng}));
+    sortedNeed = withLL.concat(noLL);
+  }
+
+  const listEl = document.getElementById('list');
+  listEl.innerHTML = '';
+  const base = sortedNeed.concat(done);
+  for(const it of base){
+    const area = it.area || 'Queenstown';
+    const row=document.createElement('div'); row.className='addr'; row.dataset.id=it.id;
+    const outL = statusLine('Out', it.outBy, it.outAt);
+    const backL = statusLine('Back', it.backBy, it.backAt);
+    const q = `${it.address||''}, ${area}`;
+    row.innerHTML=`
+      <div class="topline">
+        <div class="name">${it.address||''}</div>
+        <div class="meta">
+          <span class="badge">📍 ${area}</span>
+          <span class="badge">🗓 ${it.pickup||''}</span>
+          <button class="icon-btn" data-act="edit" data-id="${it.id}" title="Edit">✎</button>
+          <button class="icon-btn" data-act="delete" data-id="${it.id}" title="Delete">−</button>
+        </div>
+      </div>
+      <div class="bbi-photo">
+        <div class="bbi-thumb"><img alt="" data-bind="thumb"></div>
+        <div class="bbi-tools">
+          <div class="bbi-row">
+            <button class="bbi-btn" data-act="pick">Add/Replace photo</button>
+            <button class="bbi-secondary" data-act="view">View full size</button>
+            <input type="file" accept="image/*" capture="environment" style="display:none">
+          </div>
+          <div class="bbi-cap"></div>
+        </div>
+      </div>
+      <div class="actions">
+        <div>
+          <label class="toggle"><input type="checkbox" data-id="${it.id}" data-act="out" ${it.out?'checked':''}> Out</label>
+          <div class="statusline" id="stat-out-${it.id}">${outL}</div>
+        </div>
+        <div>
+          <label class="toggle"><input type="checkbox" data-id="${it.id}" data-act="back" ${it.back?'checked':''}> Back</label>
+          <div class="statusline" id="stat-back-${it.id}">${backL}</div>
+        </div>
+        <a class="pill" href="javascript:void(0)" data-q="${q}" data-act="map">Address map</a>
+      </div>
+      <textarea class="note" data-id="${it.id}" maxlength="120" placeholder="Notes"
+        autocapitalize="off" autocomplete="off" autocorrect="off" spellcheck="false" inputmode="text">${it.note?String(it.note):""}</textarea>
+    `;
+    listEl.appendChild(row);
+    initPhoto(row, it.id);
+  }
+
+  const toMaps = arr => arr.map(n => `${n.address}, ${n.area||'Queenstown'}`);
+  const jobs = toMaps(sortedNeed);
+  const url  = buildMapsUrl(origin, jobs);
+  if(url){
+    let tab=null; try{ tab = window.open('', '_blank'); }catch{ tab=null; }
+    if(tab && !tab.closed){ tab.location = url; } else { window.location = url; }
+  }
+}
+
+/* ==============
+   Toolbar hooks
+   ============== */
+onSafe(document.getElementById('addBtn'),'click',async ()=>{
+  const addr=prompt('New address (full street):'); if(!addr||!addr.trim()) return;
+  const pickup=(prompt('Pickup day (Tue/Wed/Thu/Fri):','Tuesday')||'Tuesday').trim();
+  let areaSelVal = filterArea !== 'All' ? filterArea : null;
+  if(!areaSelVal){
+    areaSelVal = prompt('Area name (choose or type):', AREAS[0] || 'Queenstown') || 'Queenstown';
+    if(!AREAS.includes(areaSelVal)){ AREAS.push(areaSelVal); localStorage.setItem(LS_AREAS, JSON.stringify(AREAS)); renderAreas(); }
+  }
+  const id=slug(addr) + '-' + slug(areaSelVal);
+  const obj={address:addr.trim(), area: areaSelVal.trim(),
+    pickup, out:false,outBy:'',outAt:0, back:false,backBy:'',backAt:0, note:'', updatedAt:Date.now(), rank: 999999
+  };
+  try{ await setDoc(doc(db,"addresses",id), obj); } catch(err){ alert('Add failed: '+(err&&err.message?err.message:err)); }
+});
+
+onSafe(document.getElementById('refresh'),'click',()=>{
+  setBanner('Re-syncing…');
+  render();
+  document.querySelectorAll('.addr').forEach(card=>{
+    const id = card.dataset.id;
+    refreshPhoto(card, id);
+  });
+  setTimeout(()=> setBanner('Live — synced'), 300);
+});
+onSafe(document.getElementById('userBtn'),'click',()=>{
+  const v = prompt('Your display name?', currentName()); if(!v) return;
+  setCurrentName(v);
+});
+
+/* ==========
+   Start up
+   ========== */
+const LAST_PV = new Map();
+async function start(){
+  try{ if(navigator.storage && navigator.storage.persist){ navigator.storage.persist().catch(()=>{}); } }catch(_){}
+  setBanner("Signing in…");
+  await signInAnonymously(auth);
+  await new Promise(res=>onAuthStateChanged(auth,u=>u&&res(u)));
+  setBanner("Connecting…");
+  const q = query(collection(db,"addresses"), orderBy("address"));
+  onSnapshot(q, (snap)=>{
+    ADDRS = snap.docs.map(d=>({ id:d.id, ...d.data() }));
+    render();
+    document.querySelectorAll('.addr').forEach(card=>{
+      const id = card.dataset.id;
+      const data = ADDRS.find(x=>x.id===id) || {};
+      LAST_PV.set(id, data.photoVersion||0);
+      refreshPhoto(card, id, data);
+    });
+    snap.docChanges().forEach(dc=>{
+      if(dc.type==='modified'){
+        const id = dc.doc.id; const data = dc.doc.data();
+        const pv = data.photoVersion||0; const prev = LAST_PV.get(id)||0;
+        if(pv && pv!==prev){ LAST_PV.set(id,pv); const card=document.querySelector(`.addr[data-id="${id}"]`); if(card){ refreshPhoto(card, id); } }
+      }
+    });
+    setBanner("Live — synced");
+  });
+}
+renderAreas();
+start();
+/* click ping */;[...document.querySelectorAll('header .btn')].forEach(b=>{ onSafe(b,'click',()=>{ b.style.transform='scale(0.98)'; setTimeout(()=> b.style.transform='', 120); }, {passive:true}); });
+</script>
+</body>
+</html>
