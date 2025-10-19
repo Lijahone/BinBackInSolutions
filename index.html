@@ -1,0 +1,302 @@
+
+// Per-address photo version cache
+function setPhotoVer(id, v){ try{ localStorage.setItem('bbi_photo_ver_'+id, String(v||0)); }catch(_){}
+}
+function getPhotoVer(id){ try{ return +(localStorage.getItem('bbi_photo_ver_'+id)||'0'); }catch(_){ return 0; } }
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Bin Back In Solutions — Clean Build</title>
+<style>
+  :root{ --bg:#f7f7fb; --card:#ffffff; --ink:#0f172a; --muted:#6b7280; --border:#e5e7eb; --brand:#2563eb; }
+  html,body{margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif}
+  header{position:sticky;top:0;background:var(--card);border-bottom:1px solid var(--border);
+    padding:10px 12px;display:flex;align-items:center;gap:8px;z-index:10;flex-wrap:wrap}
+  .brand{font-weight:800;font-size:18px}
+  .spacer{flex:1}
+  .btn{padding:10px 14px;border:1px solid var(--border);border-radius:12px;background:var(--card);cursor:pointer;font-weight:600}
+  main{max-width:920px;margin:0 auto;padding:12px}
+  .toolbar{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0}
+  .search{flex:1;display:flex;align-items:center;gap:8px;border:1px solid var(--border);
+    background:var(--card);padding:8px 12px;border-radius:12px;min-width:180px}
+  .search input{border:0;outline:0;background:transparent;color:var(--ink);width:100%;font-size:16px}
+  .addr{display:grid;gap:10px;border:1px solid var(--border);border-radius:16px;padding:14px 12px;margin-bottom:12px;background:var(--card)}
+  .topline{display:flex;align-items:center;gap:10px;justify-content:space-between;flex-wrap:wrap}
+  .name{font-weight:800}
+  .meta{color:var(--muted);font-size:12px;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  .badge{border:1px solid var(--border);border-radius:999px;padding:6px 10px;display:inline-flex;align-items:center;gap:6px}
+  .icon-btn{border:1px solid var(--border);background:var(--card);font-size:16px;line-height:1;min-width:28px;min-height:26px;
+    padding:2px 8px;border-radius:8px;color:var(--muted);cursor:pointer}
+  .bbi-photo{display:grid;grid-template-columns:110px 1fr;gap:12px;margin-top:4px}
+  .bbi-thumb{width:110px;height:110px;border-radius:10px;border:1px solid #e5e7eb;overflow:hidden;background:#f4f6fb;display:flex;align-items:center;justify-content:center}
+  .bbi-thumb img{width:100%;height:100%;object-fit:cover;display:block}
+  .bbi-tools{display:flex;flex-direction:column;gap:8px}
+  .bbi-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .bbi-btn{padding:8px 12px;border:0;border-radius:8px;background:#2563eb;color:#fff;font-weight:700;cursor:pointer}
+  .bbi-secondary{padding:8px 12px;border:0;border-radius:8px;background:#eef2ff;color:#1e40af;font-weight:700;cursor:pointer}
+  .bbi-cap{font-size:12px;color:#667085;min-height:16px}
+  .banner{display:flex;gap:8px;align-items:center;border:1px dashed var(--border);background:#fff5; padding:8px 12px;border-radius:10px;font-size:12px}
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">Bin Back In Solutions</div>
+  <div class="spacer"></div>
+  <button id="addBtn" class="btn" type="button">+ Address</button>
+  <button id="refresh" class="btn" type="button">Refresh</button>
+  <button id="userBtn" class="btn" type="button">User</button>
+</header>
+
+<main>
+  <div class="toolbar">
+    <div class="search">
+      <span>🔎</span><input id="search" placeholder="Search address…" />
+    </div>
+  </div>
+  <div id="status" class="banner">Booting…</div>
+  <h2 style="margin:10px 0 12px 0;">Addresses</h2>
+  <div id="list"></div>
+</main>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-app.js";
+import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-auth.js";
+import { getFirestore, collection, doc, setDoc, getDoc, updateDoc, deleteDoc, onSnapshot, query, orderBy } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-firestore.js";
+import * as ST from "https://www.gstatic.com/firebasejs/10.13.1/firebase-storage.js";
+
+// Firebase
+const firebaseConfig = {
+  apiKey: "AIzaSyAaDT6hFD38_P1AhQMF_vT18tXG9_pp8Sw",
+  authDomain: "binbackinsolutions.firebaseapp.com",
+  projectId: "binbackinsolutions",
+  storageBucket: "binbackinsolutions.appspot.com",
+  appId: "1:740345071529:web:e960f05ba0c982194126b8",
+};
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+const BUCKET = "gs://binbackinsolutions.appspot.com";
+
+// Utils
+const $=s=>document.querySelector(s);
+function setBanner(t){ $("#status").textContent=t; }
+function currentName(){ return localStorage.getItem('bbi_user_name') || ""; }
+function setCurrentName(name){ localStorage.setItem('bbi_user_name', name); }
+function slug(s){ return (s||'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,''); }
+function fmtShort(ts){ if(!ts) return ''; const d=new Date(ts); return d.toLocaleTimeString([], {hour:'numeric',minute:'2-digit'})+' · '+d.toLocaleDateString([], {weekday:'short'})+' '+d.toLocaleDateString([], {day:'2-digit',month:'short'}); }
+
+function setThumb(id, dataUrl){ try{ localStorage.setItem('bbi_thumb_'+id, dataUrl); }catch(e){ try{ sessionStorage.setItem('bbi_thumb_'+id, dataUrl); }catch(_){}} }
+function getThumb(id){
+  try{ const v = localStorage.getItem('bbi_thumb_'+id); if(v) return v; }catch(e){}
+  try{ const v2 = sessionStorage.getItem('bbi_thumb_'+id); if(v2) return v2; }catch(e){}
+  return '';
+}
+
+// State
+let ADDRS=[];
+
+// Render
+function render(){
+  const list = $("#list");
+  const s = ($("#search").value||'').toLowerCase();
+  list.innerHTML = "";
+  for(const it of ADDRS){
+    if(s && !String(it.address||'').toLowerCase().includes(s)) continue;
+    const row = document.createElement('div');
+    row.className = "addr";
+    row.dataset.id = it.id;
+    const area = it.area || 'Queenstown';
+    row.innerHTML = `
+      <div class="topline">
+        <div class="name">${it.address||''}</div>
+        <div class="meta">
+          <span class="badge">📍 ${area}</span>
+          <span class="badge">🗓 ${it.pickup||''}</span>
+          <button class="icon-btn" data-act="edit" title="Edit">✎</button>
+          <button class="icon-btn" data-act="delete" title="Delete">−</button>
+        </div>
+      </div>
+      <div class="bbi-photo">
+        <div class="bbi-thumb"><img data-bind="thumb" alt=""></div>
+        <div class="bbi-tools">
+          <div class="bbi-row">
+            <button class="bbi-btn" data-act="pick">Add/Replace photo</button>
+            <button class="bbi-secondary" data-act="view">View full size</button>
+            <input type="file" accept="image/*" capture="environment" style="display:none">
+          </div>
+          <div class="bbi-cap"></div>
+        </div>
+      </div>
+    `;
+    list.appendChild(row);
+    initPhoto(row, it.id);
+  }
+}
+
+// Photo logic
+async function compressImage(file, {maxSide=1600, quality=0.72, mime='image/jpeg'}={}){
+  const fr = new FileReader();
+  const dataURL = await new Promise((res, rej)=>{ fr.onload=()=>res(fr.result); fr.onerror=rej; fr.readAsDataURL(file); });
+  const img = new Image(); img.decoding='async'; img.style.imageOrientation='from-image';
+  await new Promise((res, rej)=>{ img.onload=res; img.onerror=rej; img.src=dataURL; });
+  let {width, height} = img;
+  if (Math.max(width,height) > maxSide){
+    if (width >= height){ height = Math.round(height*(maxSide/width)); width = maxSide; }
+    else { width = Math.round(height*(maxSide/height)); height = maxSide; }
+  }
+  const canvas = document.createElement('canvas'); canvas.width=width; canvas.height=height;
+  const ctx = canvas.getContext('2d'); ctx.drawImage(img,0,0,width,height);
+  const blob = await new Promise(res => canvas.toBlob(res, mime, quality));
+  return new File([blob], 'latest.jpg', {type:mime, lastModified: Date.now()});
+}
+
+async function bestPhotoURL(id){
+  try { const snap = await getDoc(doc(db,'addresses', id)); const data = snap.exists() ? snap.data() : null;
+    if (data && data.photoUrl){ const v = data.photoVersion || data.updatedAt || Date.now(); const url = data.photoUrl; return url + (url.includes('?')?'&':'?') + 'v=' + v; }
+  }catch(_){}
+  try{ const storage = ST.getStorage(app, "gs://binbackinsolutions.appspot.com"); const url = await ST.getDownloadURL(ST.ref(storage, `addresses/${id}/latest.jpg`)); const v = Date.now(); return url + (url.includes('?')?'&':'?') + 'v=' + v; }catch(_){}
+  return null;
+}
+
+function initPhoto(card, id){
+  const img = card.querySelector('img[data-bind="thumb"]');
+  const cap = card.querySelector('.bbi-cap');
+  const pickBtn = card.querySelector('[data-act="pick"]');
+  const viewBtn = card.querySelector('[data-act="view"]');
+  const fileInp = card.querySelector('input[type=file]');
+
+  try{ const cached = getThumb(id); if(cached){ img.src = cached; } }catch(_){}
+
+  (async()=>{
+    const url = await bestPhotoURL(id);
+    if(url){ 
+      img.src = url;
+      try{ const resp = await fetch(url); const blob = await resp.blob(); const r=new FileReader(); r.onload=()=>setThumb(id, r.result); r.readAsDataURL(blob);}catch(_){}
+    }
+    try{ const snap = await getDoc(doc(db,'addresses', id)); const data = snap.exists() ? snap.data() : null;
+      if(data && data.photoAt){ cap.textContent = `Last photo by ${data.photoBy||'User'} at ${fmtShort(data.photoAt)}`; }
+    }catch(_){}
+  })();
+
+  viewBtn.addEventListener('click', ()=>{
+    if(!img.src) return;
+    const b=document.createElement('div');
+    Object.assign(b.style,{position:'fixed',inset:'0',background:'rgba(0,0,0,.85)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:9999});
+    const big=new Image(); big.src=img.src; big.style.maxWidth='96vw'; big.style.maxHeight='92vh'; big.style.borderRadius='12px';
+    b.appendChild(big); b.addEventListener('click',()=>document.body.removeChild(b));
+    document.body.appendChild(b);
+  });
+
+  pickBtn.addEventListener('click', ()=> fileInp.click());
+  fileInp.addEventListener('change', async ()=>{
+    const f = fileInp.files && fileInp.files[0]; if(!f) return;
+    let small = f;
+    try { for(const st of [{maxSide:1600,quality:0.72},{maxSide:1366,quality:0.68},{maxSide:1200,quality:0.65},{maxSide:1024,quality:0.62}]){ small = await compressImage(small, st); if(small.size <= 320*1024) break; } } catch {}
+    try { img.src = URL.createObjectURL(small); } catch {}
+    try{
+      const storage = ST.getStorage(app, "gs://binbackinsolutions.appspot.com");
+      const refPath = ST.ref(storage, `addresses/${id}/latest.jpg`);
+      const task = ST.uploadBytesResumable(refPath, small, { contentType: small.type||'image/jpeg', cacheControl:'no-cache' });
+      await new Promise((resolve, reject)=>{
+        const tm = setTimeout(()=>reject(new Error('timeout')), 45000);
+        task.on('state_changed', _=>{}, err=>{ clearTimeout(tm); reject(err); }, ()=>{ clearTimeout(tm); resolve(); });
+      });
+      const url = await ST.getDownloadURL(refPath);
+      const now = Date.now();
+      img.src = url + (url.includes('?')?'&':'?') + 'v=' + now;
+      try{ const r = new FileReader(); r.onload=()=>setThumb(id, r.result); r.readAsDataURL(small);}catch(_){}
+      const who = currentName() || 'User';
+      cap.textContent = `Last photo by ${who} at ${fmtShort(now)}`;
+      await updateDoc(doc(db,'addresses', id), { photoAt: now, photoBy: who, updatedAt: now, photoUrl: url, photoVersion: now, photoVersion: now });
+    }catch(e){
+      cap.textContent = `Upload failed — ${e?.code||''}`;
+    }finally{
+      fileInp.value='';
+    }
+  });
+}
+
+// List actions
+document.getElementById('list').addEventListener('click', async (e)=>{
+  const del = e.target.closest('[data-act="delete"]');
+  const edit = e.target.closest('[data-act="edit"]');
+  const card = e.target.closest('.addr');
+  if(!card) return;
+  const id = card.dataset.id;
+
+  if(del){
+    if(!confirm('Remove this address?')) return;
+    const code = prompt('Enter passcode:'); if(code!=='5952'){ alert('Incorrect passcode'); return; }
+    try{ await deleteDoc(doc(db,'addresses',id)); }catch(err){ alert('Delete failed'); }
+    return;
+  }
+  if(edit){
+    try{
+      const snap = await getDoc(doc(db,'addresses', id));
+      const data = snap.exists() ? snap.data() : {};
+      const curAddr = data.address || '';
+      const curPickup = data.pickup || 'Tuesday';
+      const curArea = data.area || 'Queenstown';
+      const addr = prompt('Edit address:', curAddr);
+      if(addr === null) return;
+      let pickup = prompt('Pickup day (Tuesday/Wednesday/Thursday/Friday):', curPickup) || curPickup;
+      const norm = { tue:'Tuesday', tues:'Tuesday', tuesday:'Tuesday', wed:'Wednesday', weds:'Wednesday', wednesday:'Wednesday', thu:'Thursday', thur:'Thursday', thurs:'Thursday', thursday:'Thursday', fri:'Friday', friday:'Friday' };
+      pickup = norm[(pickup||'').toLowerCase()] || pickup;
+      if(!['Tuesday','Wednesday','Thursday','Friday'].includes(pickup)){ alert('Invalid pickup day.'); return; }
+      let area = prompt('Area name:', curArea) || curArea;
+      area = (area||'').trim() || curArea;
+      await updateDoc(doc(db,'addresses', id), { address: (addr||'').trim(), pickup, area, updatedAt: Date.now() });
+    }catch(err){ alert('Edit failed: ' + (err && err.message ? err.message : err)); }
+    return;
+  }
+});
+
+// Toolbar
+document.getElementById('addBtn').addEventListener('click', async ()=>{
+  const addr = prompt('New address (full street):'); if(!addr||!addr.trim()) return;
+  const pickup = (prompt('Pickup day (Tue/Wed/Thu/Fri):','Tuesday')||'Tuesday').trim();
+  const area = (prompt('Area name:','Queenstown')||'Queenstown').trim();
+  const id = slug(addr)+'-'+slug(area);
+  const obj = { address: addr.trim(), pickup, area, updatedAt: Date.now(), rank: 999999 };
+  try{ await setDoc(doc(db,"addresses",id), obj); }catch(err){ alert('Add failed: '+(err&&err.message?err.message:err)); }
+});
+
+document.getElementById('refresh').addEventListener('click', ()=>{
+  setBanner('Re-syncing…');
+  render();
+  document.querySelectorAll('.addr').forEach(card=>{
+    const id = card.dataset.id;
+    initPhoto(card, id);
+  });
+  setTimeout(()=> setBanner('Live — synced'), 300);
+});
+
+document.getElementById('userBtn').addEventListener('click', ()=>{
+  const v = prompt('Your display name?', currentName()); if(!v) return;
+  localStorage.setItem('bbi_user_name', v);
+});
+
+// Start
+async function start(){
+  try{ if(navigator.storage && navigator.storage.persist){ navigator.storage.persist().catch(()=>{}); } }catch(_){}
+  setBanner('Signing in…');
+  await signInAnonymously(auth);
+  await new Promise(res=>onAuthStateChanged(auth,u=>u&&res(u)));
+  setBanner('Connecting…');
+  const q = query(collection(db,"addresses"), orderBy("address"));
+  onSnapshot(q, snap=>{
+    ADDRS = snap.docs.map(d=>({ id:d.id, ...d.data() }));
+    render();
+    document.querySelectorAll('.addr').forEach(card=>{
+      const id = card.dataset.id;
+      initPhoto(card, id);
+    });
+    setBanner('Live — synced');
+  });
+}
+start();
+</script>
+</body>
+</html>
